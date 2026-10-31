@@ -11,6 +11,9 @@ import type { LeftPane } from '@/store/layoutStore';
 import './App.css';
 
 /*
+ * Panel sizes are "%" strings: in react-resizable-panels v4 a bare number
+ * means pixels.
+ *
  * Sources | Stream | (Map over Inspector). The left panes collapse to zero
  * width in place (collapsible Panels driven through panelRef) rather than
  * being unmounted, so the Group never re-keys and the MapLibre canvas is
@@ -82,23 +85,23 @@ export default function App() {
       {strip('stream', 'STREAM')}
       <div className="workspace">
         <Group orientation="horizontal" onLayoutChanged={onLayoutChanged}>
-          <Panel id="sources-panel" panelRef={refs.sources} collapsible collapsedSize={0} minSize={10}
-            defaultSize={initial.visible.sources ? initial.widths.sources : 0}>
+          <Panel id="sources-panel" panelRef={refs.sources} collapsible collapsedSize="0%" minSize="10%"
+            defaultSize={`${initial.visible.sources ? initial.widths.sources : 0}%`}>
             {visible.sources && <SourceList />}
           </Panel>
           <Separator className="resize-handle" />
-          <Panel id="stream-panel" panelRef={refs.stream} collapsible collapsedSize={0} minSize={16}
-            defaultSize={initial.visible.stream ? initial.widths.stream : 0}>
+          <Panel id="stream-panel" panelRef={refs.stream} collapsible collapsedSize="0%" minSize="16%"
+            defaultSize={`${initial.visible.stream ? initial.widths.stream : 0}%`}>
             {visible.stream && <SourceStream />}
           </Panel>
           <Separator className="resize-handle" />
-          <Panel id="right-panel" minSize={30}>
+          <Panel id="right-panel" minSize="30%">
             <Group orientation="vertical">
-              <Panel id="map-panel" defaultSize={65} minSize={25}>
+              <Panel id="map-panel" defaultSize="65%" minSize="25%">
                 <MapPane />
               </Panel>
               <Separator className="resize-handle resize-handle-h" />
-              <Panel id="inspector-panel" defaultSize={35} minSize={12}>
+              <Panel id="inspector-panel" defaultSize="35%" minSize="12%">
                 <Inspector />
               </Panel>
             </Group>
