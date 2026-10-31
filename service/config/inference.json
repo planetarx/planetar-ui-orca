@@ -1,0 +1,12 @@
+{
+  "slowKn": 4,
+  "transitKn": 12,
+  "loiterMin": 5,
+  "loiterRadiusM": 800,
+  "staleMin": 15,
+  "minBoats": 2,
+  "clusterRadiusM": 2500,
+  "whaleStandoffM": 400,
+  "endAfterMin": 15,
+  "confidence": { "perBoat": 0.35, "perExtraOperator": 0.25, "perLoiterMin": 0.03, "loiterCapMin": 30 }
+}

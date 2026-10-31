@@ -1,0 +1,10 @@
+{
+  "_note": "Whale-watching operators' vessels. Only these are tracked. Add real ones by hand with verified: true. The 99900000x MMSIs are the simulated scenario's boats.",
+  "vessels": [
+    { "mmsi": 999000001, "name": "SIM ORCA SPIRIT", "operator": "Sim Whale Tours", "verified": false, "simulated": true },
+    { "mmsi": 999000002, "name": "SIM SALISH STAR", "operator": "Sim Whale Tours", "verified": false, "simulated": true },
+    { "mmsi": 999000003, "name": "SIM TIDE RUNNER", "operator": "Sim Orca Co", "verified": false, "simulated": true },
+    { "mmsi": 999000004, "name": "SIM BLACKFISH", "operator": "Sim Sea Safaris", "verified": false, "simulated": true },
+    { "mmsi": 999000005, "name": "SIM HARBOUR IDLER", "operator": "Sim Whale Tours", "verified": false, "simulated": true }
+  ]
+}
