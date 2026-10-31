@@ -59,3 +59,18 @@
 .tag-est, .tag-sim { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 3px; font-size: 10px; font-family: var(--mono); vertical-align: 1px; }
 .tag-est { background: #3b2a1f; color: #ff9a70; }
 .tag-sim { background: #3a2f12; color: #facc15; letter-spacing: 0.5px; }
+
+/* ============ Map + inspector ============ */
+.map-container { position: absolute; inset: 0; }
+.offline-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5;
+  background: rgba(60, 20, 20, 0.92); border: 1px solid var(--accent-hot); color: #ffd0d0;
+  padding: 5px 12px; border-radius: 4px; font-size: 12px; }
+.map-hint { position: absolute; bottom: 28px; right: 10px; z-index: 4; background: rgba(11, 16, 28, 0.85);
+  color: var(--text-dim); font-size: 11px; padding: 3px 8px; border-radius: 3px; }
+.insp-head { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; }
+.insp-title { font-size: 16px; font-weight: 600; color: var(--text); }
+.insp-row { display: flex; gap: 12px; padding: 3px 4px; font-size: 12px; }
+.insp-k { color: var(--text-dim); min-width: 150px; }
+.insp-v { color: var(--text); }
+.insp-blurb { margin: 4px; font-size: 13px; color: var(--text-muted); }
+.tag-ended { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; font-family: var(--mono); background: var(--bg-3); color: var(--text-muted); }

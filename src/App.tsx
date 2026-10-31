@@ -4,6 +4,7 @@ import type { Layout } from 'react-resizable-panels';
 import { Inspector } from '@/components/Inspector';
 import { KeystrokeHelp } from '@/components/KeystrokeHelp';
 import { MapPane } from '@/components/MapPane';
+import { useOrcaStreams } from '@/hooks/useOrcaStreams';
 import { SourceList } from '@/components/SourceList';
 import { SourceStream } from '@/components/SourceStream';
 import { useLayoutStore } from '@/store/layoutStore';
@@ -20,6 +21,8 @@ import './App.css';
  * never remounted — planetar-ui's stretched-map lesson.
  */
 export default function App() {
+  // Mounted here, not in a pane, so collapsing a pane never unsubscribes.
+  useOrcaStreams();
   const visible = useLayoutStore((s) => s.visible);
   const widths = useLayoutStore((s) => s.widths);
   const showHelp = useLayoutStore((s) => s.showHelp);

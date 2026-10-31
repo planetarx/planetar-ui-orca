@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { broker } from '@/lib/broker';
 import { fetchHealth, fetchSnapshot } from '@/lib/service';
 import { useEstimatesStore } from '@/store/estimatesStore';
+import { useBoatsStore } from '@/store/boatsStore';
+import type { BoatPosition } from '@/store/boatsStore';
 import { useEvidenceStore } from '@/store/evidenceStore';
 import { ORCA_TOPICS } from '@/types/orca';
 import type { EstimateEvent, OrcaEvidence } from '@/types/orca';
@@ -26,11 +28,14 @@ async function loadSnapshot() {
 }
 
 function start(): () => void {
-  const topics = [ORCA_TOPICS.evidence, ORCA_TOPICS.estimate];
+  const topics = [ORCA_TOPICS.evidence, ORCA_TOPICS.estimate, ORCA_TOPICS.position, ORCA_TOPICS.simPosition];
   const unsubs = topics.map((t) => broker.subscribe(t));
   const offEnv = broker.onEnvelope((env) => {
     if (env.topic === ORCA_TOPICS.evidence) useEvidenceStore.getState().ingest(env.payload as OrcaEvidence);
     else if (env.topic === ORCA_TOPICS.estimate) useEstimatesStore.getState().applyEvent(env.payload as EstimateEvent);
+    else if (env.topic === ORCA_TOPICS.position || env.topic === ORCA_TOPICS.simPosition) {
+      useBoatsStore.getState().ingest(env.payload as BoatPosition);
+    }
   });
 
   void loadSnapshot();

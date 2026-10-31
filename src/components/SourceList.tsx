@@ -1,7 +1,6 @@
 import { PaneHeader } from '@/components/PaneHeader';
 import { HYDROPHONES } from '@/data/hydrophones';
 import { SOURCES } from '@/data/sources';
-import { useOrcaStreams } from '@/hooks/useOrcaStreams';
 import { estimateLabel, pct } from '@/lib/format';
 import { activeEstimates, useEstimatesStore } from '@/store/estimatesStore';
 import { useEvidenceStore } from '@/store/evidenceStore';
@@ -9,7 +8,6 @@ import { useLayoutStore } from '@/store/layoutStore';
 import type { SourceId } from '@/types/orca';
 
 export function SourceList() {
-  useOrcaStreams();
   const toggle = useLayoutStore((s) => s.toggle);
   const selection = useLayoutStore((s) => s.selection);
   const select = useLayoutStore((s) => s.select);
