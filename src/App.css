@@ -1,0 +1,37 @@
+/* Shell styles copied from planetar-ui's App.css (pane, header, resize, help). */
+.app { display: flex; height: 100vh; width: 100vw; background: var(--bg-0); position: relative; }
+.workspace { flex: 1; min-width: 0; display: flex; }
+
+.pane { height: 100%; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; }
+.pane-header {
+  height: 44px; flex-shrink: 0; padding: 0 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted);
+}
+.pane-header .ph-section { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); font-weight: 600; }
+.pane-header .ph-title { color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pane-header .ph-spacer { flex: 1; }
+.ph-collapse { color: var(--text-dim); font-size: 15px; padding: 2px 6px; border-radius: 3px; }
+.ph-collapse:hover { color: var(--text); background: var(--bg-3); }
+.pane-body { flex: 1; overflow: auto; padding: 12px 10px; }
+
+.pane-strip {
+  width: 18px; flex-shrink: 0; background: var(--bg-0); border-right: 1px solid var(--border);
+  color: var(--text-dim); writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.8px;
+  padding-top: 10px; text-align: start;
+}
+.pane-strip:hover { color: var(--accent); background: var(--bg-2); }
+
+.resize-handle { width: 3px; background: var(--border); position: relative; transition: background 120ms ease; flex-shrink: 0; }
+.resize-handle-h { width: auto; height: 3px; }
+.resize-handle:hover, .resize-handle[data-resize-handle-active] { background: var(--accent); }
+.resize-handle::after { content: ''; position: absolute; inset: 0 -4px; }
+.resize-handle-h::after { inset: -4px 0; }
+
+.pane-map { position: relative; }
+
+.help-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.help-panel { background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 24px 28px; max-width: 520px; width: 100%; box-shadow: var(--shadow); }
+.help-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 18px; font-weight: 600; }
+.help-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: var(--text); }
+.help-row .kbd { font-family: var(--mono); background: var(--bg-3); border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; font-size: 11px; color: var(--accent); }
+.help-hint { margin-top: 16px; font-size: 11px; color: var(--text-dim); text-align: center; font-family: var(--mono); }
