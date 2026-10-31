@@ -18,6 +18,7 @@ export function createInferenceService({ config, harbours, vessels, publish, now
   const evidence = [];
   const ended = []; // {estimate, atNs}
   const lastIgnored = new Map(); // mmsi → ns of the last ignored event published
+  const tracks = new Map(); // listed mmsi → [{lat, lon, sog, atNs}] for the last trackKeepMin
   const startedNs = String(now());
 
   function world(pos) {
@@ -63,7 +64,23 @@ export function createInferenceService({ config, harbours, vessels, publish, now
     }
   }
 
+  function remember(pos) {
+    if (!vessels.has(pos.mmsi)) return;
+    const t = BigInt(pos.lastSeenNs);
+    const list = tracks.get(pos.mmsi) ?? [];
+    list.push({ lat: pos.lat, lon: pos.lon, sog: pos.sog, atNs: String(t) });
+    const cutoff = t - BigInt(config.trackKeepMin) * NS_PER_MIN;
+    while (list.length && BigInt(list[0].atNs) < cutoff) list.shift();
+    tracks.set(pos.mmsi, list);
+  }
+
+  /** The raw positions behind a boat's evidence (listed boats, last trackKeepMin). */
+  function track(mmsi, fromNs, toNs) {
+    return (tracks.get(mmsi) ?? []).filter((p) => BigInt(p.atNs) >= fromNs && BigInt(p.atNs) <= toNs);
+  }
+
   function onPosition(pos) {
+    remember(pos);
     const w = world(pos);
     if (w.simulated) {
       const t = BigInt(pos.lastSeenNs);
@@ -107,5 +124,5 @@ export function createInferenceService({ config, harbours, vessels, publish, now
     };
   }
 
-  return { onPosition, tick, snapshot };
+  return { onPosition, tick, snapshot, track, startedNs };
 }

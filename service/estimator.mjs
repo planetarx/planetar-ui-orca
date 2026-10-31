@@ -85,9 +85,15 @@ export class Estimator {
 
     const ended = [];
     const endNs = BigInt(this.c.endAfterMin) * NS_PER_MIN;
+    const boatTo = new Map(upserts.flatMap((u) => u.boats.map((m) => [m, u.id])));
     for (const [id, a] of this.active) {
-      if (claimed.has(id) || nowNs - a.lastClusterNs < endNs) continue;
-      const estimate = { ...a.estimate, status: 'ended', updatedNs: String(nowNs) };
+      if (claimed.has(id)) continue;
+      // Every boat now belongs to another estimate: it merged, so end it now
+      // rather than leave a frozen ghost for endAfterMin.
+      const into = a.estimate.boats.length && a.estimate.boats.every((m) => boatTo.has(m))
+        ? boatTo.get(a.estimate.boats[0]) : null;
+      if (!into && nowNs - a.lastClusterNs < endNs) continue;
+      const estimate = { ...a.estimate, status: 'ended', updatedNs: String(nowNs), ...(into && { mergedInto: into }) };
       this.active.delete(id);
       for (const [mmsi, eid] of this.boatEstimate) if (eid === id) this.boatEstimate.delete(mmsi);
       ended.push(estimate);

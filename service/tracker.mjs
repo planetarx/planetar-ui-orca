@@ -1,10 +1,20 @@
 // Per-boat behaviour: is a listed whale-watch boat in port, under way,
-// slowing, or watching something? Whale-watch boats run fast to the whales,
-// then slow and stay put near them; that loiter is the signal.
+// slowing, watching something, or moored? Whale-watch boats run fast to the
+// whales, then slow and stay near them; that run-out-then-loiter is the signal.
+//
+// - A boat counts as watching only after a fast run (≥ transitKn) within
+//   transitWithinMin before it slowed — a boat idling at a berth that no
+//   harbour polygon covers never qualifies.
+// - Once watching, it stays watching until it goes ≥ transitKn again
+//   (hysteresis: boats following travelling whales at 4–6 kn don't flap).
+// - Watching longer than maxWatchMin → probably moored; it stops counting
+//   until its next fast run.
+// - sog ≥ 102.2 is AIS "not available": position and time update, nothing else.
 
 import { distanceM, pointInPolygon } from './geo.mjs';
 
 const NS_PER_MIN = 60_000_000_000n;
+const SOG_NOT_AVAILABLE = 102.2;
 const kn = (v) => `${Number(v).toFixed(1)} kn`;
 
 export class BoatTracker {
@@ -12,7 +22,12 @@ export class BoatTracker {
     this.c = config;
     this.harbours = harbours;
     this.vessels = vessels;
-    this.state = new Map(); // mmsi → {phase, anchor, slowSinceNs, lastNs, lat, lon, name}
+    // mmsi → {phase, anchor, slowSinceNs, lastNs, lastFastNs, gateNoted, lat, lon, name}
+    this.state = new Map();
+  }
+
+  min(n) {
+    return BigInt(n) * NS_PER_MIN;
   }
 
   /** One AIS position → the events it triggers (none for unlisted vessels). */
@@ -20,9 +35,11 @@ export class BoatTracker {
     const v = this.vessels.get(pos.mmsi);
     if (!v) return [];
     const t = BigInt(pos.lastSeenNs);
-    const staleNs = BigInt(this.c.staleMin) * NS_PER_MIN;
     let s = this.state.get(pos.mmsi);
-    if (!s || t - s.lastNs > staleNs) s = { phase: 'transit', anchor: null, slowSinceNs: null };
+    if (!s || t - s.lastNs > this.min(this.c.staleMin)) {
+      // New or silent too long: start over, but remember its last fast run.
+      s = { phase: 'transit', anchor: null, slowSinceNs: null, lastFastNs: s?.lastFastNs ?? null, gateNoted: false };
+    }
     const prev = s.phase;
     s.lastNs = t;
     s.lat = pos.lat;
@@ -30,56 +47,84 @@ export class BoatTracker {
     s.name = v.name ?? pos.name;
     this.state.set(pos.mmsi, s);
 
+    const sog = Number(pos.sog);
+    if (!Number.isFinite(sog) || sog >= SOG_NOT_AVAILABLE) return [];
+
     const ev = (kind, text, reason = null) => ({
       kind, mmsi: pos.mmsi, atNs: String(t), lat: pos.lat, lon: pos.lon, text, reason,
       simulated: Boolean(pos.simulated || v.simulated),
     });
     const out = [];
+    const minsSince = (ns) => Number((t - ns) / NS_PER_MIN);
 
     const harbour = this.harbours.find((h) => pointInPolygon(pos, h.polygon));
     if (harbour) {
       if (prev === 'watching') out.push(ev('left', `${s.name} returned to ${harbour.name}`));
-      Object.assign(s, { phase: 'harbour', anchor: null, slowSinceNs: null });
-      out.push(ev('ignored', `${s.name} in ${harbour.name} at ${kn(pos.sog)}`, `in harbour: ${harbour.name}`));
+      Object.assign(s, { phase: 'harbour', anchor: null, slowSinceNs: null, gateNoted: false });
+      out.push(ev('ignored', `${s.name} in ${harbour.name} at ${kn(sog)}`, `in harbour: ${harbour.name}`));
       return out;
     }
 
-    if (pos.sog >= this.c.slowKn) {
-      if (prev === 'watching') {
-        const mins = Number((t - s.slowSinceNs) / NS_PER_MIN);
-        out.push(ev('left', `${s.name} left at ${kn(pos.sog)} after watching ${mins} min`));
-      } else if (prev !== 'transit') {
-        out.push(ev('transit', `${s.name} under way at ${kn(pos.sog)}`));
-      }
-      Object.assign(s, { phase: 'transit', anchor: null, slowSinceNs: null });
+    if (sog >= this.c.transitKn) {
+      s.lastFastNs = t;
+      if (prev === 'watching') out.push(ev('left', `${s.name} left at ${kn(sog)} after watching ${minsSince(s.slowSinceNs)} min`));
+      else if (prev !== 'transit') out.push(ev('transit', `${s.name} under way at ${kn(sog)}`));
+      Object.assign(s, { phase: 'transit', anchor: null, slowSinceNs: null, gateNoted: false });
       return out;
     }
 
-    // Slow. A watching boat follows slow-moving whales, so its anchor drifts
-    // with it; a boat not yet watching restarts its clock when it moves off.
-    const away = s.anchor && distanceM(s.anchor, pos) > this.c.loiterRadiusM;
+    if (prev === 'moored') {
+      out.push(ev('ignored', `${s.name} stationary at ${kn(sog)}`,
+        `stationary over ${this.c.maxWatchMin} min: probably moored`));
+      return out;
+    }
+
     if (prev === 'watching') {
-      if (away) s.anchor = { lat: pos.lat, lon: pos.lon };
+      // Follows the whales: the anchor drifts with the boat.
+      if (distanceM(s.anchor, pos) > this.c.loiterRadiusM) s.anchor = { lat: pos.lat, lon: pos.lon };
+      if (t - s.slowSinceNs >= this.min(this.c.maxWatchMin)) {
+        s.phase = 'moored';
+        out.push(ev('ignored', `${s.name} has been still for ${minsSince(s.slowSinceNs)} min`,
+          `stationary over ${this.c.maxWatchMin} min: probably moored`));
+      }
       return out;
     }
+
+    if (sog >= this.c.slowKn) {
+      // Under way, not fast: no loiter clock, no watching.
+      if (prev !== 'transit') out.push(ev('transit', `${s.name} under way at ${kn(sog)}`));
+      Object.assign(s, { phase: 'transit', anchor: null, slowSinceNs: null, gateNoted: false });
+      return out;
+    }
+
+    // Slow and not yet watching. Moving off the anchor restarts the clock.
+    const away = s.anchor && distanceM(s.anchor, pos) > this.c.loiterRadiusM;
     if (prev !== 'slow' || away) {
-      if (prev !== 'slow') out.push(ev('arrived-slow', `${s.name} slowed to ${kn(pos.sog)}`));
-      Object.assign(s, { phase: 'slow', anchor: { lat: pos.lat, lon: pos.lon }, slowSinceNs: t });
+      if (prev !== 'slow') out.push(ev('arrived-slow', `${s.name} slowed to ${kn(sog)}`));
+      Object.assign(s, { phase: 'slow', anchor: { lat: pos.lat, lon: pos.lon }, slowSinceNs: t, gateNoted: false });
     }
-    if (t - s.slowSinceNs >= BigInt(this.c.loiterMin) * NS_PER_MIN) {
-      s.phase = 'watching';
-      out.push(ev('watching',
-        `${s.name} has stayed within ${this.c.loiterRadiusM} m at ${kn(pos.sog)} for ${this.c.loiterMin} min`));
+    if (t - s.slowSinceNs < this.min(this.c.loiterMin)) return out;
+
+    const ranOut = s.lastFastNs != null && s.slowSinceNs - s.lastFastNs <= this.min(this.c.transitWithinMin);
+    if (!ranOut) {
+      if (!s.gateNoted) {
+        s.gateNoted = true;
+        out.push(ev('ignored', `${s.name} slow for ${this.c.loiterMin} min at ${kn(sog)}`,
+          `no fast run out first (≥ ${this.c.transitKn} kn within ${this.c.transitWithinMin} min): moored or idling?`));
+      }
+      return out;
     }
+    s.phase = 'watching';
+    out.push(ev('watching',
+      `${s.name} ran out fast, then stayed within ${this.c.loiterRadiusM} m at ${kn(sog)} for ${this.c.loiterMin} min`));
     return out;
   }
 
   /** Boats watching now: phase watching and heard from within staleMin. */
   watching(nowNs) {
-    const staleNs = BigInt(this.c.staleMin) * NS_PER_MIN;
     const out = [];
     for (const [mmsi, s] of this.state) {
-      if (s.phase !== 'watching' || nowNs - s.lastNs > staleNs) continue;
+      if (s.phase !== 'watching' || nowNs - s.lastNs > this.min(this.c.staleMin)) continue;
       const v = this.vessels.get(mmsi);
       out.push({ mmsi, name: s.name, operator: v.operator, lat: s.lat, lon: s.lon,
         sinceNs: s.slowSinceNs, lastNs: s.lastNs, simulated: Boolean(v.simulated) });

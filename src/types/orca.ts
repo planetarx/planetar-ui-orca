@@ -43,6 +43,8 @@ export interface OrcaEstimate {
   operators: string[];
   evidenceIds: string[];
   simulated: boolean;
+  /** On an ended estimate whose boats all joined another. */
+  mergedInto?: string;
 }
 
 /** `orca.estimate` — schema `orca.Estimate.v1`. */

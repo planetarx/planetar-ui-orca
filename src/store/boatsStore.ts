@@ -23,6 +23,8 @@ const TRACK_KEEP_NS = 2n * 3_600_000_000_000n; // last 2 h
 interface BoatsState {
   byMmsi: Record<number, BoatRecord>;
   ingest: (p: BoatPosition) => void;
+  /** Merge recorded positions (from the service's /track) into a boat's track. */
+  mergeTrack: (mmsi: number, points: { lat: number; lon: number; atNs: string }[]) => void;
 }
 
 export const useBoatsStore = create<BoatsState>((set) => ({
@@ -37,4 +39,14 @@ export const useBoatsStore = create<BoatsState>((set) => ({
       return { byMmsi: { ...s.byMmsi, [p.mmsi]: { pos: p, track } } };
     });
   },
+  mergeTrack: (mmsi, points) => set((s) => {
+    const prev = s.byMmsi[mmsi];
+    const seen = new Set((prev?.track ?? []).map((t) => t.atNs));
+    const track = [...(prev?.track ?? []), ...points.filter((p) => !seen.has(p.atNs))
+      .map(({ lat, lon, atNs }) => ({ lat, lon, atNs }))]
+      .sort((a, b) => (BigInt(a.atNs) < BigInt(b.atNs) ? -1 : 1));
+    const last = points[points.length - 1];
+    const pos = prev?.pos ?? (last && { mmsi, lat: last.lat, lon: last.lon, sog: NaN, lastSeenNs: last.atNs, serverId: 'orca' });
+    return pos ? { byMmsi: { ...s.byMmsi, [mmsi]: { pos, track } } } : {};
+  }),
 }));

@@ -21,7 +21,8 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://127.0.0.1:5290',
-    reuseExistingServer: true,
+    // Never reuse: a dev stack the founder is using must not receive test data.
+    reuseExistingServer: false,
     timeout: 30_000,
   },
 });

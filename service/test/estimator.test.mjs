@@ -90,3 +90,16 @@ test('two clusters 10 km apart make two estimates', () => {
   assert.equal(upserts.length, 2);
   assert.notEqual(upserts[0].id, upserts[1].id);
 });
+
+test('when two estimates merge, the absorbed one ends at once', () => {
+  const e = new Estimator(config);
+  const first = e.step([boat(1, 0), boat(2, 300), boat(3, 6000), boat(4, 6300)], at(1)).upserts;
+  assert.equal(first.length, 2);
+  // The two groups drift together into one cluster.
+  const { upserts, ended } = e.step([boat(1, 0), boat(2, 300), boat(3, 900), boat(4, 1200)], at(2));
+  assert.equal(upserts.length, 1);
+  assert.equal(ended.length, 1);
+  assert.equal(ended[0].status, 'ended');
+  assert.equal(ended[0].mergedInto, upserts[0].id);
+  assert.equal(e.current().length, 1);
+});

@@ -127,10 +127,10 @@ test('a simulated boat never joins a real estimate', () => {
   for (let m = 1; m <= 50; m++) {
     clock = T0 + BigInt(m) * MIN;
     while (i < positions.length && positions[i].atNs <= clock) core.onPosition(positions[i++].pos);
-    // Two real boats loiter right beside the simulated encounter from minute 35.
-    if (m >= 35) {
+    // Two real boats run out fast, then loiter right beside the simulated encounter from minute 35.
+    if (m >= 30) {
       for (const [mmsi, dLon] of [[111, 0], [112, 0.004]]) {
-        core.onPosition({ mmsi, name: `R${mmsi}`, lat: 48.29, lon: -123.505 + dLon, sog: 1,
+        core.onPosition({ mmsi, name: `R${mmsi}`, lat: 48.29, lon: -123.505 + dLon, sog: m < 35 ? 20 : 1,
           lastSeenNs: String(clock), simulated: false, serverId: 'orca' });
       }
     }
@@ -151,12 +151,31 @@ test('HTTP /snapshot and /health respond', async () => {
   const { port } = server.address();
   try {
     const health = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
-    assert.deepEqual(health, { ok: true });
+    assert.deepEqual(health, { ok: true, startedNs: h.core.snapshot().startedNs });
     const res = await fetch(`http://127.0.0.1:${port}/snapshot`);
     assert.equal(res.headers.get('access-control-allow-origin'), '*');
     const snap = await res.json();
     assert.equal(snap.estimates.length, 1);
     assert.equal(typeof snap.startedNs, 'string');
+  } finally {
+    server.close();
+  }
+});
+
+test('GET /track returns a listed boat\'s positions in a time window', async () => {
+  const h = harness();
+  replay(h, 45);
+  const server = await startHttp(h.core, 0);
+  const { port } = server.address();
+  try {
+    const from = T0 + 30n * MIN;
+    const to = T0 + 40n * MIN;
+    const r = await (await fetch(`http://127.0.0.1:${port}/track?mmsi=999000001&from=${from}&to=${to}`)).json();
+    assert.ok(r.points.length >= 15, `${r.points.length} points`);
+    assert.ok(r.points.every((p) => BigInt(p.atNs) >= from && BigInt(p.atNs) <= to));
+    const unlisted = await (await fetch(`http://127.0.0.1:${port}/track?mmsi=999000006&from=${from}&to=${to}`)).json();
+    assert.deepEqual(unlisted.points, []);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/track?mmsi=x`)).status, 400);
   } finally {
     server.close();
   }

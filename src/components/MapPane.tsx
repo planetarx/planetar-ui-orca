@@ -5,6 +5,7 @@ import type { FeatureCollection } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { HYDROPHONES } from '@/data/hydrophones';
 import { circleRing } from '@/lib/geo';
+import { boatFeatures, estimateFeatures } from '@/lib/mapData';
 import { useBoatsStore } from '@/store/boatsStore';
 import { activeEstimates, useEstimatesStore } from '@/store/estimatesStore';
 import { useLayoutStore } from '@/store/layoutStore';
@@ -26,6 +27,8 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
   ],
 };
 const CENTER: [number, number] = [-123.3, 48.4];
+/** Boats with no fix for this long leave the map (AIS off, or out of range). */
+const BOAT_STALE_MIN = 30;
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
 
 export function MapPane() {
@@ -49,14 +52,17 @@ export function MapPane() {
       for (const id of ['estimates', 'boats', 'track', 'hydrophones']) map.addSource(id, { type: 'geojson', data: EMPTY });
       map.addLayer({ id: 'est-fill', type: 'fill', source: 'estimates',
         paint: { 'fill-color': '#ff7850', 'fill-opacity': ['get', 'opacity'] } });
+      // Simulated estimates get a yellow outline (the SIMULATED tag colour).
       map.addLayer({ id: 'est-line', type: 'line', source: 'estimates',
-        paint: { 'line-color': '#ff7850', 'line-width': ['case', ['get', 'selected'], 2.5, 1], 'line-dasharray': [2, 2] } });
+        paint: { 'line-color': ['case', ['get', 'simulated'], '#facc15', '#ff7850'],
+          'line-width': ['case', ['get', 'selected'], 2.5, 1.2], 'line-dasharray': [2, 2] } });
       map.addLayer({ id: 'track', type: 'line', source: 'track', paint: { 'line-color': '#4ade80', 'line-width': 1.5, 'line-opacity': 0.7 } });
       map.addLayer({ id: 'hydrophones', type: 'circle', source: 'hydrophones',
         paint: { 'circle-radius': 5, 'circle-color': '#60a5fa', 'circle-stroke-color': '#0b101c', 'circle-stroke-width': 1.5 } });
       map.addLayer({ id: 'boats', type: 'circle', source: 'boats',
         paint: { 'circle-radius': 4.5, 'circle-color': ['case', ['get', 'inEstimate'], '#4ade80', '#6b7280'],
-          'circle-stroke-color': '#0b101c', 'circle-stroke-width': 1 } });
+          'circle-stroke-color': ['case', ['get', 'simulated'], '#facc15', '#0b101c'],
+          'circle-stroke-width': ['case', ['get', 'simulated'], 2, 1] } });
       (map.getSource('hydrophones') as GeoJSONSource).setData({ type: 'FeatureCollection', features: HYDROPHONES.map((h) => ({
         type: 'Feature', geometry: { type: 'Point', coordinates: [h.lon, h.lat] }, properties: { name: h.name } })) });
       loadedRef.current = true;
@@ -98,12 +104,10 @@ export function MapPane() {
       const ests = activeEstimates(byId);
       const sel = selection.kind === 'estimate' ? byId[selection.id] : null;
       const inEst = new Set(sel?.boats ?? ests.flatMap((e) => e.boats));
-      (map.getSource('estimates') as GeoJSONSource).setData({ type: 'FeatureCollection', features: ests.map((e) => ({
-        type: 'Feature', geometry: { type: 'Polygon', coordinates: [circleRing(e, e.radiusM)] },
-        properties: { id: e.id, opacity: e.confidence * (offline ? 0.25 : 0.6), selected: e.id === sel?.id } })) });
-      (map.getSource('boats') as GeoJSONSource).setData({ type: 'FeatureCollection', features: Object.values(boats).map((b) => ({
-        type: 'Feature', geometry: { type: 'Point', coordinates: [b.pos.lon, b.pos.lat] },
-        properties: { mmsi: b.pos.mmsi, inEstimate: inEst.has(b.pos.mmsi) } })) });
+      (map.getSource('estimates') as GeoJSONSource).setData({ type: 'FeatureCollection',
+        features: estimateFeatures(ests, sel?.id ?? null, offline) });
+      (map.getSource('boats') as GeoJSONSource).setData({ type: 'FeatureCollection',
+        features: boatFeatures(boats, inEst, BigInt(Date.now()) * 1_000_000n, BOAT_STALE_MIN) });
       const tr = selection.kind === 'boat' ? boats[selection.mmsi]?.track : null;
       (map.getSource('track') as GeoJSONSource).setData(tr && tr.length > 1
         ? { type: 'Feature', geometry: { type: 'LineString', coordinates: tr.map((t) => [t.lon, t.lat]) }, properties: {} }

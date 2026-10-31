@@ -2,7 +2,7 @@ import { PaneHeader } from '@/components/PaneHeader';
 import { HYDROPHONES } from '@/data/hydrophones';
 import { SOURCES } from '@/data/sources';
 import { estimateLabel, pct } from '@/lib/format';
-import { activeEstimates, useEstimatesStore } from '@/store/estimatesStore';
+import { activeEstimates, isStale, useEstimatesStore } from '@/store/estimatesStore';
 import { useEvidenceStore } from '@/store/evidenceStore';
 import { useLayoutStore } from '@/store/layoutStore';
 import type { SourceId } from '@/types/orca';
@@ -14,6 +14,9 @@ export function SourceList() {
   const boats = useEvidenceStore((s) => s.bySource.boats);
   const byId = useEstimatesStore((s) => s.byId);
   const estimates = activeEstimates(byId);
+  const busStatus = useEstimatesStore((s) => s.busStatus);
+  const serviceStatus = useEstimatesStore((s) => s.serviceStatus);
+  const stale = isStale({ busStatus, serviceStatus });
 
   const count = (id: SourceId) => {
     if (id === 'boats') return new Set(boats.map((e) => e.mmsi)).size;
@@ -25,6 +28,10 @@ export function SourceList() {
     <div className="pane pane-sources">
       <PaneHeader section="Sources" onCollapse={() => toggle('sources')} collapseLabel="Collapse sources" />
       <div className="pane-body">
+        <div className={`status-line${stale ? ' status-bad' : ''}`}>
+          bus {busStatus === 'open' ? 'live' : busStatus === 'closed' ? 'down' : 'connecting'}
+          {' · '}inference {serviceStatus}
+        </div>
         {SOURCES.map((s) => {
           const on = selection.kind === 'source' && selection.id === s.id;
           return (
@@ -44,7 +51,8 @@ export function SourceList() {
             <button key={e.id} className={`source-row estimate-row${on ? ' sel' : ''}`}
               onClick={() => select({ kind: 'estimate', id: e.id })}>
               <span className="dot" style={{ background: '#ff7850', opacity: 0.3 + e.confidence * 0.7 }} />
-              <span className="sr-label">{estimateLabel(e)}{e.simulated && <span className="tag-sim">SIMULATED</span>}</span>
+              <span className="sr-label">{estimateLabel(e)}{e.simulated && <span className="tag-sim">SIMULATED</span>}
+                {stale && <span className="tag-ended">stale</span>}</span>
               <span className="sr-count">{pct(e.confidence)}</span>
             </button>
           );

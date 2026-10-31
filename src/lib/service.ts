@@ -9,11 +9,23 @@ export async function fetchSnapshot(): Promise<Snapshot> {
   return r.json();
 }
 
-export async function fetchHealth(): Promise<boolean> {
+/** → the service's start stamp (it changes on restart), or null if unreachable. */
+export async function fetchHealth(): Promise<string | null> {
   try {
     const r = await fetch(`${SERVICE_URL}/health`);
-    return r.ok;
+    if (!r.ok) return null;
+    return String((await r.json()).startedNs ?? '');
   } catch {
-    return false;
+    return null;
   }
+}
+
+export interface TrackPoint { lat: number; lon: number; sog: number; atNs: string }
+
+/** A listed boat's recorded positions (the service keeps the last 2 h). */
+export async function fetchTrack(mmsi: number): Promise<TrackPoint[]> {
+  // `to` is open-ended: a --speed replay stamps ahead of the wall clock.
+  const r = await fetch(`${SERVICE_URL}/track?mmsi=${mmsi}&from=0&to=9223372036854775807`);
+  if (!r.ok) return [];
+  return (await r.json()).points ?? [];
 }

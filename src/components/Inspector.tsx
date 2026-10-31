@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { EvidenceItem } from '@/components/SourceStream';
 import { PaneHeader } from '@/components/PaneHeader';
@@ -6,13 +7,16 @@ import { sourceById } from '@/data/sources';
 import { estimateLabel, pct, safeHttpUrl, timeOf } from '@/lib/format';
 import { distanceM } from '@/lib/geo';
 import { useBoatsStore } from '@/store/boatsStore';
-import { useEstimatesStore } from '@/store/estimatesStore';
+import { isStale, useEstimatesStore } from '@/store/estimatesStore';
+import { fetchTrack } from '@/lib/service';
 import { useEvidenceStore } from '@/store/evidenceStore';
 import { useLayoutStore } from '@/store/layoutStore';
 import type { OrcaEvidence } from '@/types/orca';
 
 const NEARBY_HYDROPHONE_M = 10_000;
 const NS_PER_MIN = 60_000_000_000n;
+/** AIS sog 102.3 means "not available". */
+const speed = (sog: number) => (Number.isFinite(sog) && sog < 102.2 ? `${sog.toFixed(1)} kn` : 'n/a');
 
 function Row({ k, v }: { k: string; v: ReactNode }) {
   return <div className="insp-row"><span className="insp-k">{k}</span><span className="insp-v">{v}</span></div>;
@@ -44,6 +48,18 @@ export function Inspector() {
   const evidenceById = useEvidenceStore((s) => s.byId);
   const boatEvidence = useEvidenceStore((s) => s.bySource.boats);
   const boats = useBoatsStore((s) => s.byMmsi);
+  const stale = useEstimatesStore(isStale);
+  const boatMmsi = selection.kind === 'boat' ? selection.mmsi : null;
+
+  // The raw track behind a boat's evidence survives a page reload: the
+  // service keeps the last 2 h of listed boats' positions.
+  useEffect(() => {
+    if (boatMmsi == null) return;
+    let live = true;
+    fetchTrack(boatMmsi).then((pts) => { if (live && pts.length) useBoatsStore.getState().mergeTrack(boatMmsi, pts); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [boatMmsi]);
 
   let content: ReactNode;
   if (selection.kind === 'estimate') {
@@ -61,6 +77,7 @@ export function Inspector() {
             <span className="insp-title">{estimateLabel(e)}</span>
             {e.simulated && <span className="tag-sim">SIMULATED</span>}
             {e.status === 'ended' && <span className="tag-ended">ENDED</span>}
+            {stale && e.status === 'active' && <span className="tag-ended">stale: bus or inference down</span>}
           </div>
           <Row k="confidence" v={<b>{pct(e.confidence)}</b>} />
           <Row k="evidence" v={`${e.boats.length} boats · ${e.operators.length} operators · watched for ${watchedMin} min`} />
@@ -86,7 +103,7 @@ export function Inspector() {
         <Row k="vessel" v={`MMSI ${selection.mmsi}`} />
         {b ? (
           <>
-            <Row k="speed / course" v={`${b.pos.sog.toFixed(1)} kn · ${Math.round(b.pos.cog ?? 0)}°`} />
+            <Row k="speed / course" v={`${speed(b.pos.sog)} · ${b.pos.cog == null ? 'n/a' : `${Math.round(b.pos.cog)}°`}`} />
             <Row k="last position" v={`${b.pos.lat.toFixed(4)}, ${b.pos.lon.toFixed(4)} at ${timeOf(b.pos.lastSeenNs)}`} />
             <Row k="track held" v={`${b.track.length} positions (last 2 h)`} />
           </>

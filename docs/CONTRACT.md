@@ -42,8 +42,10 @@ Payload `{ event: 'upsert' | 'ended', estimate }`:
 | `operators` | string[] | their operators |
 | `evidenceIds` | string[] | the evidence behind it |
 | `simulated` | boolean | true if any of its boats is simulated |
+| `mergedInto` | string, optional | on an `ended` estimate whose boats all joined another: that estimate's id |
 
 ## HTTP (port 9410)
 
 - `GET /snapshot` → `{ estimates, evidence (last 500), startedNs }`: active estimates plus those ended in the last 2 h, so a reloaded page fills at once.
-- `GET /health` → `{ ok: true }`
+- `GET /health` → `{ ok: true, startedNs }`: `startedNs` changes when the service restarts, so a client reloads the snapshot.
+- `GET /track?mmsi=&from=&to=` (ns) → `{ mmsi, points: [{lat, lon, sog, atNs}] }`: the raw positions behind a boat's evidence; listed boats only, last 2 h.

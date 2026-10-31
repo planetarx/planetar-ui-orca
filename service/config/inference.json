@@ -1,8 +1,10 @@
 {
   "slowKn": 4,
   "transitKn": 12,
+  "transitWithinMin": 60,
   "loiterMin": 5,
   "loiterRadiusM": 800,
+  "maxWatchMin": 150,
   "staleMin": 15,
   "minBoats": 2,
   "clusterRadiusM": 2500,
@@ -17,5 +19,6 @@
   "ignoredEveryMin": 30,
   "snapshotEndedMin": 120,
   "evidenceKeep": 500,
-  "trackWindowMin": 60
+  "trackWindowMin": 60,
+  "trackKeepMin": 120
 }

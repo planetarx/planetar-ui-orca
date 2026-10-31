@@ -58,9 +58,15 @@ test('unlisted vessel produces no events', () => {
   assert.deepEqual(tr.watching(at(20)), []);
 });
 
+/** A fast run out to RACE_ROCKS ending at minute 0, then a 6-min loiter: watching from minute 5. */
+function watchingAtRaceRocks(tr) {
+  feed(tr, LISTED, run(RACE_ROCKS, 20, -10, 10));
+  feed(tr, LISTED, hold(RACE_ROCKS, 2, 0, 6));
+}
+
 test('gap under staleMin keeps watching', () => {
   const tr = tracker();
-  feed(tr, LISTED, hold(RACE_ROCKS, 2, 0, 6));
+  watchingAtRaceRocks(tr);
   feed(tr, LISTED, [{ ...RACE_ROCKS, sog: 2, tMin: 16 }]); // 10 min silent
   const [w] = tr.watching(at(16));
   assert.equal(w?.sinceNs, at(0));
@@ -68,14 +74,14 @@ test('gap under staleMin keeps watching', () => {
 
 test('gap over staleMin drops the boat', () => {
   const tr = tracker();
-  feed(tr, LISTED, hold(RACE_ROCKS, 2, 0, 6));
+  watchingAtRaceRocks(tr);
   assert.equal(tr.watching(at(6)).length, 1);
   assert.equal(tr.watching(at(6 + 16)).length, 0);
 });
 
 test('speeding away after watching emits left', () => {
   const tr = tracker();
-  feed(tr, LISTED, hold(RACE_ROCKS, 2, 0, 6));
+  watchingAtRaceRocks(tr);
   const ev = feed(tr, LISTED, [
     { lat: 48.295, lon: -123.52, sog: 18, tMin: 6.5 },
     { lat: 48.300, lon: -123.51, sog: 18, tMin: 7 },
@@ -86,10 +92,55 @@ test('speeding away after watching emits left', () => {
 
 test('a watching boat drifting with slow whales stays watching', () => {
   const tr = tracker();
-  feed(tr, LISTED, hold(RACE_ROCKS, 2, 0, 6));
+  watchingAtRaceRocks(tr);
   // 40 min drifting east at ~3 kn: ~3.7 km, well past loiterRadiusM.
   const drift = Array.from({ length: 80 }, (_, i) => ({ lat: RACE_ROCKS.lat, lon: RACE_ROCKS.lon + 0.00062 * i, sog: 3, tMin: 6.5 + i / 2 }));
   feed(tr, LISTED, drift);
   const [w] = tr.watching(at(46));
   assert.equal(w?.sinceNs, at(0));
+});
+
+test('a boat at a berth outside the harbour polygons never watches without a fast run out', () => {
+  const tr = tracker();
+  const SNUG = { lat: 48.5717, lon: -123.163 };
+  const ev = feed(tr, LISTED, hold(SNUG, 0.1, 0, 8 * 60));
+  assert.deepEqual(tr.watching(at(8 * 60)), []);
+  assert.ok(ev.some((e) => e.kind === 'ignored' && /no fast run out/.test(e.reason)));
+});
+
+test('a boat that runs in and ties up at an unlisted berth stops counting after maxWatchMin', () => {
+  const tr = tracker();
+  const SNUG = { lat: 48.5717, lon: -123.163 };
+  feed(tr, LISTED, run(SNUG, 20, -10, 10));
+  feed(tr, LISTED, hold(SNUG, 0.1, 0, 149));
+  assert.equal(tr.watching(at(149)).length, 1);
+  const ev = feed(tr, LISTED, hold(SNUG, 0.1, 150, 60));
+  assert.deepEqual(tr.watching(at(210)), []);
+  assert.ok(ev.some((e) => e.kind === 'ignored' && /probably moored/.test(e.reason)));
+});
+
+test('sog 102.3 (not available) keeps the phase and emits nothing', () => {
+  const tr = tracker();
+  watchingAtRaceRocks(tr);
+  const ev = feed(tr, LISTED, [{ ...RACE_ROCKS, sog: 102.3, tMin: 7 }]);
+  assert.deepEqual(ev, []);
+  const [w] = tr.watching(at(7));
+  assert.equal(w?.sinceNs, at(0));
+});
+
+test('a watching boat moving between slowKn and transitKn stays watching (no flapping)', () => {
+  const tr = tracker();
+  watchingAtRaceRocks(tr);
+  const ev = feed(tr, LISTED, [4.2, 3.8, 4.4, 3.9, 6].map((sog, i) => ({ lat: RACE_ROCKS.lat, lon: RACE_ROCKS.lon + 0.001 * i, sog, tMin: 6.5 + i / 2 })));
+  assert.deepEqual(ev.filter((e) => e.kind === 'left' || e.kind === 'transit'), []);
+  assert.equal(tr.watching(at(9)).length, 1);
+  const out = feed(tr, LISTED, [{ lat: 48.30, lon: -123.50, sog: 13, tMin: 9.5 }]);
+  assert.deepEqual(out.map((e) => e.kind), ['left']);
+});
+
+test('a boat cruising slowly without a fast run out never watches', () => {
+  const tr = tracker();
+  const cruise = Array.from({ length: 30 }, (_, i) => ({ lat: 48.3, lon: -123.6 + 0.00073 * i, sog: 3.5, tMin: i / 2 }));
+  feed(tr, LISTED, cruise);
+  assert.deepEqual(tr.watching(at(15)), []);
 });

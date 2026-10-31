@@ -74,3 +74,6 @@
 .insp-v { color: var(--text); }
 .insp-blurb { margin: 4px; font-size: 13px; color: var(--text-muted); }
 .tag-ended { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 10px; font-family: var(--mono); background: var(--bg-3); color: var(--text-muted); }
+.status-line { margin: 0 10px 8px; font-size: 11px; font-family: var(--mono); color: var(--text-dim); }
+.status-line.status-bad { color: var(--accent-hot); }
+.sr-label .tag-ended { margin-left: 6px; }
