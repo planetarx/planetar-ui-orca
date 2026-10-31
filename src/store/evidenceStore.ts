@@ -24,9 +24,11 @@ function add(s: EvidenceState, es: OrcaEvidence[]) {
   const bySource = { ...s.bySource };
   const byId = { ...s.byId };
   for (const e of es) {
-    if (byId[e.id] || !bySource[e.source]) continue;
+    if (!bySource[e.source]) continue;
+    // Same id again = the service re-published it (e.g. now counted): replace.
+    const others = byId[e.id] ? bySource[e.source].filter((x) => x.id !== e.id) : bySource[e.source];
     byId[e.id] = e;
-    const list = [e, ...bySource[e.source]].sort((a, b) => (BigInt(b.atNs) > BigInt(a.atNs) ? 1 : -1));
+    const list = [e, ...others].sort((a, b) => (BigInt(b.atNs) > BigInt(a.atNs) ? 1 : -1));
     for (const dropped of list.splice(CAP)) delete byId[dropped.id];
     bySource[e.source] = list;
   }

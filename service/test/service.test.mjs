@@ -82,6 +82,20 @@ test('snapshot after minute 45 holds the estimate and its evidence resolves', ()
   assert.ok(snap.evidence.every((e) => e.simulated));
 });
 
+test('every boat in an estimate has its watching evidence linked, including the first to arrive', () => {
+  const h = harness();
+  replay(h, 45);
+  const snap = h.core.snapshot();
+  const [est] = snap.estimates;
+  const linked = snap.evidence.filter((e) => est.evidenceIds.includes(e.id));
+  for (const mmsi of est.boats) {
+    assert.ok(linked.some((e) => e.mmsi === mmsi && e.counted), `boat ${mmsi} has no linked evidence`);
+  }
+  // The re-linked item is republished so live clients see it counted.
+  const first = h.sent.filter((m) => m.topic === 'orca.evidence' && m.payload.mmsi === 999000001 && m.payload.counted);
+  assert.ok(first.length >= 1);
+});
+
 test('a simulated boat never joins a real estimate', () => {
   const vessels = loadVessels();
   vessels.set(111, { mmsi: 111, name: 'REAL ONE', operator: 'Real Co', verified: true, simulated: false });

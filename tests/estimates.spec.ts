@@ -63,3 +63,14 @@ test('a boat-only estimate is labelled Whales, never Orca', async ({ page }) => 
   await expect(row).toContainText('Whales');
   await expect(row).not.toContainText(/orca/i);
 });
+
+test('a republished evidence item replaces the earlier one', async ({ page }) => {
+  await page.goto('/');
+  const ev = evidence({ reason: '1 boat, below minimum of 2' });
+  const item = page.locator('.pane-stream .ev-item', { hasText: ev.text as string });
+  await publishUntil(page, item, pubEvidence(ev));
+  await expect(item).toHaveClass(/ev-ignored/);
+  await publishUntil(page, item.locator('.tag-est'), pubEvidence({ ...ev, counted: true, reason: null }));
+  await expect(item).toHaveCount(1);
+  await expect(item).not.toHaveClass(/ev-ignored/);
+});

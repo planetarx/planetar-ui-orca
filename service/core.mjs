@@ -24,7 +24,8 @@ export function createInferenceService({ config, harbours, vessels, publish, now
     const key = simulated ? 'sim' : 'real';
     if (!worlds.has(key)) {
       worlds.set(key, { simulated, tracker: new BoatTracker(config, harbours, vessels),
-        estimator: new Estimator(config), dataNs: null, wallAtData: null });
+        estimator: new Estimator(config), dataNs: null, wallAtData: null,
+        lastWatching: new Map() }); // mmsi → its latest 'watching' evidence
     }
     return worlds.get(key);
   }
@@ -41,6 +42,19 @@ export function createInferenceService({ config, harbours, vessels, publish, now
   function step(w) {
     const t = clock(w);
     const r = w.estimator.step(w.tracker.watching(t), t);
+    // A boat that started watching alone was "below minimum" then; once it is
+    // part of an estimate, its watching evidence is part of the why.
+    for (const estimate of r.upserts) {
+      for (const mmsi of estimate.boats) {
+        const ev = w.lastWatching.get(mmsi);
+        if (!ev || estimate.evidenceIds.includes(ev.id)) continue;
+        const linked = w.estimator.attach({ ...ev, reason: null });
+        w.lastWatching.set(mmsi, linked);
+        const i = evidence.findIndex((x) => x.id === linked.id);
+        if (i >= 0) evidence[i] = linked;
+        publish('orca.evidence', 'orca.Evidence.v1', linked);
+      }
+    }
     for (const estimate of r.upserts) publish('orca.estimate', 'orca.Estimate.v1', { event: 'upsert', estimate });
     for (const estimate of r.ended) {
       ended.push({ estimate, atNs: now() });
@@ -70,6 +84,7 @@ export function createInferenceService({ config, harbours, vessels, publish, now
           fromNs: String(t - BigInt(config.trackWindowMin) * NS_PER_MIN), toNs: e.atNs },
         simulated: e.simulated,
       });
+      if (e.kind === 'watching') w.lastWatching.set(e.mmsi, ev);
       evidence.push(ev);
       if (evidence.length > config.evidenceKeep) evidence.shift();
       publish('orca.evidence', 'orca.Evidence.v1', ev);
