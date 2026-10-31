@@ -68,3 +68,18 @@ test('reload restores estimates from the snapshot', async ({ page }) => {
     sim.kill();
   }
 });
+
+test('evidence links open only http(s) URLs', async ({ page }) => {
+  await page.goto('/');
+  const bad = evidence({ counted: true, raw: { kind: 'url', url: 'javascript:alert(1)' }, mmsi: null });
+  const good = evidence({ counted: true, raw: { kind: 'url', url: 'https://example.org/post' }, mmsi: null });
+  const est = estimate({ confidence: 0.71, evidenceIds: [bad.id, good.id] });
+  await publishUntil(page, page.getByText(bad.text as string), pubEvidence(bad));
+  await publishUntil(page, page.getByText(good.text as string), pubEvidence(good));
+  const row = page.locator('.estimate-row', { hasText: '71%' }).first();
+  await publishUntil(page, row, pubEstimate(est));
+  await row.click();
+  const insp = page.locator('.pane-inspector');
+  await expect(insp.locator('.ev-item', { hasText: bad.text as string })).not.toHaveAttribute('role', 'button');
+  await expect(insp.locator('.ev-item', { hasText: good.text as string })).toHaveAttribute('role', 'button');
+});

@@ -3,7 +3,7 @@ import { EvidenceItem } from '@/components/SourceStream';
 import { PaneHeader } from '@/components/PaneHeader';
 import { HYDROPHONES } from '@/data/hydrophones';
 import { sourceById } from '@/data/sources';
-import { estimateLabel, pct, timeOf } from '@/lib/format';
+import { estimateLabel, pct, safeHttpUrl, timeOf } from '@/lib/format';
 import { distanceM } from '@/lib/geo';
 import { useBoatsStore } from '@/store/boatsStore';
 import { useEstimatesStore } from '@/store/estimatesStore';
@@ -18,6 +18,12 @@ function Row({ k, v }: { k: string; v: ReactNode }) {
   return <div className="insp-row"><span className="insp-k">{k}</span><span className="insp-v">{v}</span></div>;
 }
 
+/** A click handler for an evidence link, only for http(s) URLs (bus data is untrusted). */
+function openUrl(raw: string) {
+  const url = safeHttpUrl(raw);
+  return url ? () => window.open(url, '_blank', 'noopener,noreferrer') : undefined;
+}
+
 function EvidenceList({ items }: { items: OrcaEvidence[] }) {
   const select = useLayoutStore((s) => s.select);
   if (!items.length) return <div className="list-empty">No evidence held for this yet.</div>;
@@ -26,8 +32,7 @@ function EvidenceList({ items }: { items: OrcaEvidence[] }) {
       {items.map((e) => (
         <EvidenceItem key={e.id} e={e} onSelect={
           e.raw?.kind === 'ais-track' ? () => select({ kind: 'boat', mmsi: (e.raw as { mmsi: number }).mmsi })
-            : e.raw?.kind === 'url' ? () => window.open((e.raw as { url: string }).url, '_blank', 'noopener')
-              : undefined} />
+            : e.raw?.kind === 'url' ? openUrl(e.raw.url) : undefined} />
       ))}
     </>
   );
