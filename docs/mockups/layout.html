@@ -1,0 +1,125 @@
+<h2>Where are the whales, and why do we think so?</h2>
+<p class="subtitle">Three ways to lay out the first screen. Same data in each: one estimated pod off Race Rocks, backed by boats, a hydrophone, and a sighting report. Click the one that feels closest.</p>
+
+<style>
+  .mw { display:flex; gap:6px; height:300px; font-size:11px; }
+  .pane { border:1px solid #3a4a5c; border-radius:4px; padding:6px; overflow:hidden; background:#0f1722; color:#c9d4e0; }
+  .pane h5 { margin:0 0 4px; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#7f93a8; }
+  .sea { position:relative; background:#12283d; }
+  .land { position:absolute; background:#2a3140; border-radius:40% 30% 50% 20%; }
+  .blob { position:absolute; border-radius:50%; background:radial-gradient(circle, rgba(255,120,80,.75), rgba(255,120,80,.25) 55%, rgba(255,120,80,0) 70%); }
+  .boat { position:absolute; width:7px; height:7px; background:#4ade80; border-radius:50%; }
+  .hyd { position:absolute; width:9px; height:9px; background:#60a5fa; transform:rotate(45deg); }
+  .rep { position:absolute; width:9px; height:9px; background:#facc15; border-radius:2px; }
+  .trail { position:absolute; border-top:2px dotted #ff7850; transform-origin:left; }
+  .ev { border-left:3px solid #555; padding:3px 6px; margin:4px 0; background:#162232; border-radius:2px; }
+  .ev.b { border-color:#4ade80 } .ev.h { border-color:#60a5fa } .ev.r { border-color:#facc15 }
+  .ev small { color:#7f93a8 }
+  .bar { height:5px; background:#2a3a4c; border-radius:3px; margin-top:2px } .bar i { display:block; height:5px; border-radius:3px; background:#ff7850 }
+  .src { padding:3px 4px; margin:2px 0; border-radius:2px; } .src.on { background:#1d3047 }
+  .line { position:absolute; border-top:1px dashed #7f93a8; transform-origin:left; }
+  .node { position:absolute; padding:3px 5px; border-radius:3px; background:#162232; border:1px solid #3a4a5c; font-size:10px; white-space:nowrap; }
+  .est { position:absolute; padding:5px 8px; border-radius:16px; background:#ff7850; color:#111; font-weight:600; font-size:11px; }
+  .tl { height:22px; margin-top:6px; background:#162232; border-radius:3px; position:relative; }
+  .tl span { position:absolute; top:4px; width:3px; height:14px; border-radius:1px; }
+</style>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>planetar-ui layout (4 panes)</h3>
+      <p>Same shell as planetar-ui: sources on the left, a live evidence feed in the middle, map + inspector on the right. Click the orange estimate and the inspector lists what backs it.</p>
+      <div class="mockup"><div class="mockup-body">
+        <div class="mw">
+          <div class="pane" style="width:16%">
+            <h5>Sources</h5>
+            <div class="src on">● Whale-watch boats 7</div>
+            <div class="src on">◆ Hydrophones 3</div>
+            <div class="src on">■ Sighting reports 2</div>
+            <div class="src">◇ VHF radio —</div>
+            <h5 style="margin-top:8px">Pods</h5>
+            <div class="src on">J pod (est.)</div>
+            <div class="src">T-pod (Bigg's)</div>
+          </div>
+          <div class="pane" style="width:30%">
+            <h5>Evidence feed</h5>
+            <div class="ev b">4 boats slowed &lt;3 kn, clustered off Race Rocks <small>12 min ago</small></div>
+            <div class="ev h">Calls at Race Rocks hydrophone <small>8 min ago · ▶ clip</small></div>
+            <div class="ev r">"Orcas heading east past Race Rocks" <small>FB group · 20 min</small></div>
+            <div class="ev b">Boat 316xxxx left Victoria harbour at 22 kn heading SW <small>31 min</small></div>
+          </div>
+          <div class="pane" style="width:54%; display:flex; flex-direction:column; padding:0">
+            <div class="sea" style="flex:1">
+              <div class="land" style="left:45%;top:-10%;width:60%;height:45%"></div>
+              <div class="blob" style="left:22%;top:45%;width:70px;height:70px"></div>
+              <div class="boat" style="left:27%;top:56%"></div><div class="boat" style="left:31%;top:52%"></div>
+              <div class="boat" style="left:33%;top:60%"></div><div class="boat" style="left:29%;top:63%"></div>
+              <div class="hyd" style="left:24%;top:48%"></div>
+              <div class="rep" style="left:35%;top:50%"></div>
+            </div>
+            <div style="padding:6px; border-top:1px solid #3a4a5c">
+              <h5>Inspector · Estimate #12</h5>
+              Orcas likely here · <b>78%</b> · 3 independent sources
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Map first, "Why" panel on the side</h3>
+      <p>The map takes the screen. Each estimate is a heat blob with a projected path. The side panel explains the selected one, with each source's contribution as a bar. A timeline at the bottom replays the last few hours.</p>
+      <div class="mockup"><div class="mockup-body">
+        <div class="mw" style="flex-direction:column; height:auto">
+          <div class="mw" style="height:270px">
+            <div class="pane sea" style="width:68%; padding:0">
+              <div class="land" style="left:50%;top:-10%;width:55%;height:45%"></div>
+              <div class="land" style="left:-10%;top:80%;width:60%;height:35%"></div>
+              <div class="blob" style="left:25%;top:40%;width:90px;height:90px"></div>
+              <div class="trail" style="left:37%;top:56%;width:80px;transform:rotate(-12deg)"></div>
+              <div class="boat" style="left:31%;top:52%"></div><div class="boat" style="left:35%;top:48%"></div>
+              <div class="boat" style="left:37%;top:58%"></div><div class="boat" style="left:32%;top:61%"></div>
+              <div class="hyd" style="left:28%;top:45%"></div>
+              <div class="rep" style="left:40%;top:47%"></div>
+              <div class="blob" style="left:70%;top:62%;width:40px;height:40px;opacity:.5"></div>
+            </div>
+            <div class="pane" style="width:32%">
+              <h5>Why we think orcas are here</h5>
+              <div style="font-size:13px;margin-bottom:6px"><b>78%</b> · heading E ~5 kn</div>
+              <div class="ev b">Boat behaviour<div class="bar"><i style="width:55%"></i></div><small>4 boats · loitering 14 min · ▸ tracks</small></div>
+              <div class="ev h">Hydrophone calls<div class="bar"><i style="width:30%"></i></div><small>Race Rocks · 8 min ago · ▶ listen</small></div>
+              <div class="ev r">Sighting report<div class="bar"><i style="width:15%"></i></div><small>Facebook · 20 min ago · ▸ post</small></div>
+            </div>
+          </div>
+          <div class="tl"><span style="left:20%;background:#4ade80"></span><span style="left:48%;background:#facc15"></span><span style="left:63%;background:#60a5fa"></span><span style="left:80%;background:#4ade80"></span><span style="left:96%;background:#fff;width:2px"></span></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Reasoning view</h3>
+      <p>Click an estimate and the screen shows its reasoning as a diagram: the conclusion in the middle, each piece of evidence around it, each linked to its raw sensor data. The map is still one click away.</p>
+      <div class="mockup"><div class="mockup-body">
+        <div class="pane" style="position:relative; height:280px">
+          <div class="est" style="left:40%;top:44%">Orcas off Race Rocks · 78%</div>
+          <div class="line" style="left:30%;top:22%;width:90px;transform:rotate(30deg)"></div>
+          <div class="line" style="left:68%;top:24%;width:70px;transform:rotate(140deg)"></div>
+          <div class="line" style="left:48%;top:60%;width:60px;transform:rotate(90deg)"></div>
+          <div class="node" style="left:6%;top:14%">● 4 boats loitering 14 min<br><small>▸ AIS tracks</small></div>
+          <div class="node" style="left:66%;top:12%">◆ Calls, Race Rocks hydrophone<br><small>▶ 0:42 clip · spectrogram</small></div>
+          <div class="node" style="left:36%;top:80%">■ "Orcas heading east" · Facebook<br><small>▸ original post · 20 min</small></div>
+          <div class="node" style="left:74%;top:70%;opacity:.55">◇ VHF radio · no data<br><small>source not connected</small></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+</div>

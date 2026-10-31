@@ -1,0 +1,93 @@
+<h2>Layout A, the planetar-ui way</h2>
+<p class="subtitle">Sources in the far-left column (like planetar-ui's channel list). Click a source and the middle column shows its detailed live stream (like a channel's conversation). Map and inspector on the right. Both left columns collapse (Ctrl+Shift+S / Ctrl+Shift+C, or the « handles), and the dividers drag to resize.</p>
+
+<style>
+  .mw { display:flex; gap:0; height:360px; font-size:11px; border:1px solid #3a4a5c; border-radius:4px; overflow:hidden; }
+  .pane { padding:7px; overflow:hidden; background:#0f1722; color:#c9d4e0; border-right:1px solid #3a4a5c; position:relative; }
+  .pane h5 { margin:0 0 5px; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:#7f93a8; }
+  .handle { position:absolute; right:3px; top:5px; color:#7f93a8; font-size:12px; }
+  .src { padding:4px 5px; margin:1px 0; border-radius:3px; display:flex; justify-content:space-between; }
+  .src.sel { background:#1d3047; color:#fff; }
+  .src .n { color:#7f93a8 } .src.off { opacity:.45 }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px; }
+  .msg { padding:5px 6px; margin:5px 0; background:#162232; border-radius:3px; border-left:3px solid #4ade80; }
+  .msg small { color:#7f93a8; display:block; margin-top:2px }
+  .msg .tag { display:inline-block; padding:0 4px; border-radius:2px; background:#3b2a1f; color:#ff9a70; font-size:10px; margin-left:4px }
+  .sea { position:relative; background:#12283d; flex:1; }
+  .land { position:absolute; background:#2a3140; border-radius:40% 30% 50% 20%; }
+  .blob { position:absolute; border-radius:50%; background:radial-gradient(circle, rgba(255,120,80,.75), rgba(255,120,80,.25) 55%, rgba(255,120,80,0) 70%); }
+  .boat { position:absolute; width:7px; height:7px; background:#4ade80; border-radius:50%; }
+  .boat.far { background:#2f7a50 }
+  .hyd { position:absolute; width:9px; height:9px; background:#60a5fa; transform:rotate(45deg); }
+  .rep { position:absolute; width:9px; height:9px; background:#facc15; border-radius:2px; }
+  .ins { border-top:1px solid #3a4a5c; padding:7px; background:#0f1722; color:#c9d4e0; }
+  .row { display:flex; justify-content:space-between; margin:2px 0 } .row span:first-child { color:#7f93a8 }
+  .strip { width:14px; background:#0b121b; border-right:1px solid #3a4a5c; color:#7f93a8; writing-mode:vertical-rl; font-size:9px; text-align:center; padding-top:6px; }
+</style>
+
+<div class="section">
+  <div class="label">Expanded</div>
+  <div class="mockup"><div class="mockup-body">
+    <div class="mw">
+      <div class="pane" style="width:17%">
+        <span class="handle">«</span>
+        <h5>Sources</h5>
+        <div class="src sel"><span><span class="dot" style="background:#4ade80"></span>Whale-watch boats</span><span class="n">7</span></div>
+        <div class="src"><span><span class="dot" style="background:#60a5fa"></span>Hydrophones</span><span class="n">3</span></div>
+        <div class="src"><span><span class="dot" style="background:#facc15"></span>Sighting reports</span><span class="n">2</span></div>
+        <div class="src off"><span><span class="dot" style="background:#a78bfa"></span>VHF radio</span><span class="n">—</span></div>
+        <div class="src off"><span><span class="dot" style="background:#f472b6"></span>Social media</span><span class="n">—</span></div>
+        <h5 style="margin-top:10px">Estimates</h5>
+        <div class="src"><span><span class="dot" style="background:#ff7850"></span>Race Rocks</span><span class="n">78%</span></div>
+        <div class="src"><span><span class="dot" style="background:#ff7850;opacity:.5"></span>Haro Strait</span><span class="n">31%</span></div>
+      </div>
+      <div class="pane" style="width:31%">
+        <span class="handle">«</span>
+        <h5>Whale-watch boats · live</h5>
+        <div class="msg">PRINCE OF WHALES II slowed 24 → 2.5 kn, 1.8 km SE of Race Rocks <span class="tag">→ est. Race Rocks</span><small>14:02 · AIS · ▸ track</small></div>
+        <div class="msg">3 more operators converging on same spot, now loitering 14 min <span class="tag">→ est. Race Rocks</span><small>14:09 · AIS · ▸ tracks</small></div>
+        <div class="msg">EAGLE WING left Fisherman's Wharf at 22 kn heading SW<small>14:11 · AIS</small></div>
+        <div class="msg" style="border-color:#2f7a50">SPRINGTIDE idling in Victoria harbour (not counted: in port)<small>14:12 · AIS</small></div>
+      </div>
+      <div style="width:52%; display:flex; flex-direction:column">
+        <div class="sea">
+          <div class="land" style="left:45%;top:-10%;width:60%;height:45%"></div>
+          <div class="land" style="left:-10%;top:82%;width:55%;height:30%"></div>
+          <div class="blob" style="left:20%;top:40%;width:80px;height:80px"></div>
+          <div class="blob" style="left:78%;top:30%;width:40px;height:40px;opacity:.45"></div>
+          <div class="boat" style="left:27%;top:52%"></div><div class="boat" style="left:31%;top:48%"></div>
+          <div class="boat" style="left:33%;top:56%"></div><div class="boat" style="left:29%;top:59%"></div>
+          <div class="boat" style="left:47%;top:44%"></div><div class="boat far" style="left:58%;top:28%"></div>
+          <div class="hyd" style="left:24%;top:45%"></div>
+          <div class="rep" style="left:36%;top:47%"></div>
+        </div>
+        <div class="ins">
+          <h5 style="margin:0 0 4px;font-size:10px;color:#7f93a8;text-transform:uppercase">Inspector · Estimate: Race Rocks</h5>
+          <div class="row"><span>confidence</span><span><b>78%</b> · 3 independent sources</span></div>
+          <div class="row"><span>boats</span><span>4 loitering 14 min ▸</span></div>
+          <div class="row"><span>hydrophone</span><span>calls 8 min ago ▶</span></div>
+          <div class="row"><span>report</span><span>1 · 20 min ago ▸</span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<div class="section">
+  <div class="label">Both left columns collapsed: map + inspector fill the screen</div>
+  <div class="mockup"><div class="mockup-body">
+    <div class="mw" style="height:200px">
+      <div class="strip">SOURCES »</div>
+      <div class="strip">STREAM »</div>
+      <div style="flex:1; display:flex; flex-direction:column">
+        <div class="sea">
+          <div class="land" style="left:50%;top:-10%;width:55%;height:45%"></div>
+          <div class="blob" style="left:22%;top:30%;width:90px;height:90px"></div>
+          <div class="boat" style="left:28%;top:48%"></div><div class="boat" style="left:31%;top:44%"></div>
+          <div class="boat" style="left:33%;top:52%"></div><div class="hyd" style="left:25%;top:40%"></div>
+          <div class="rep" style="left:36%;top:42%"></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
