@@ -62,4 +62,5 @@ export const ORCA_TOPICS = {
   evidence: 'orca.evidence',
   estimate: 'orca.estimate',
   position: 'vessel.ais.position',
+  simPosition: 'sim.vessel.ais.position',
 } as const;

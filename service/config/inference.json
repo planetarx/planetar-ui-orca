@@ -8,5 +8,14 @@
   "clusterRadiusM": 2500,
   "whaleStandoffM": 400,
   "endAfterMin": 15,
-  "confidence": { "perBoat": 0.35, "perExtraOperator": 0.25, "perLoiterMin": 0.03, "loiterCapMin": 30 }
+  "confidence": {
+    "perBoat": 0.35,
+    "perExtraOperator": 0.25,
+    "perLoiterMin": 0.03,
+    "loiterCapMin": 30
+  },
+  "ignoredEveryMin": 30,
+  "snapshotEndedMin": 120,
+  "evidenceKeep": 500,
+  "trackWindowMin": 60
 }
