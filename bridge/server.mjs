@@ -254,7 +254,17 @@ const broker = new BrokerLink();
 
 // ---------------- WS server + fan-out ----------------
 
-const wss = new WebSocketServer({ port: PORT, host: '127.0.0.1' });
+// Browsers always send Origin; only the app's own pages may open the bridge,
+// since it publishes onto the live bus. Non-browser clients (tests, scripts)
+// send none and are allowed — they already run on this machine.
+const ALLOWED_ORIGINS = new Set(
+  (process.env.BRIDGE_ALLOWED_ORIGINS ?? 'http://127.0.0.1:5290,http://localhost:5290').split(','),
+);
+const wss = new WebSocketServer({
+  port: PORT,
+  host: '127.0.0.1',
+  verifyClient: ({ origin }) => !origin || ALLOWED_ORIGINS.has(origin),
+});
 
 wss.on('listening', () => {
   console.log(`[bridge] listening on ws://127.0.0.1:${PORT} · synthetic=${SYNTHETIC ? 'on' : 'off'}`);

@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:service": "node --test service/test/"
+    "test:service": "node --test 'service/test/*.test.mjs' 'bridge/test/*.test.mjs'"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",

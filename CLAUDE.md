@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Command | What it does |
 |---|---|
 | `npm run dev` | `concurrently`: Vite **:5290** (`strictPort`) + `bridge/server.mjs` on **ws://127.0.0.1:9400** + `service/index.mjs` (HTTP **:9410**) |
-| `npm run test:service` | `node --test service/test/` (the inference; no network) |
+| `npm run test:service` | `node:test` over `service/test/` and `bridge/test/` (the inference, and the bridge's Origin check) |
 | `npm test` | Playwright, bundled Chromium only, auto-starts `npm run dev` |
 | `npx tsc -b` · `npm run lint` | Typecheck · lint |
 
@@ -24,3 +24,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Tests never attach to the founder's Chrome (no CDP); they use Playwright's bundled Chromium.
 - Vessels and whales only; never profile the people behind sighting reports or posts.
 - `tsconfig.app.json` keeps planetar-ui's `erasableSyntaxOnly` + `verbatimModuleSyntax` (no enums, `import type`); `@/` → `src/`.
+- The bridge accepts browser connections only from `BRIDGE_ALLOWED_ORIGINS` (default the app's own :5290 origins); planetar-ui's bridge has no such check. Keep it: the bridge publishes onto the live bus.
