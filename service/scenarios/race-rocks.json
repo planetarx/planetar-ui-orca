@@ -1,0 +1,31 @@
+{
+  "name": "race-rocks",
+  "description": "SIMULATED. A whale group travels east past Race Rocks at 3 kn; four whale-watch boats from three operators run out from Fisherman's Wharf, hold 400-700 m off for ~30 min, and return. One listed boat idles in the harbour; one unlisted ferry transits Haro Strait. MMSIs 99900000x are not real vessels.",
+  "durationMin": 90,
+  "intervalS": 30,
+  "seed": 42,
+  "jitterM": 50,
+  "whales": { "start": [48.2900, -123.5600], "headingDeg": 90, "speedKn": 3 },
+  "vessels": [
+    { "mmsi": 999000001, "name": "SIM ORCA SPIRIT", "startMin": 0, "start": [48.4225, -123.3830], "phases": [
+      { "kind": "goto", "to": "whales", "offsetM": 500, "bearingDeg": 0, "speedKn": 20 },
+      { "kind": "hold", "offsetM": 500, "bearingDeg": 0, "untilMin": 60 },
+      { "kind": "goto", "to": [48.4225, -123.3830], "speedKn": 20 } ] },
+    { "mmsi": 999000002, "name": "SIM SALISH STAR", "startMin": 3, "start": [48.4225, -123.3830], "phases": [
+      { "kind": "goto", "to": "whales", "offsetM": 600, "bearingDeg": 90, "speedKn": 20 },
+      { "kind": "hold", "offsetM": 600, "bearingDeg": 90, "untilMin": 62 },
+      { "kind": "goto", "to": [48.4225, -123.3830], "speedKn": 20 } ] },
+    { "mmsi": 999000003, "name": "SIM TIDE RUNNER", "startMin": 6, "start": [48.4225, -123.3830], "phases": [
+      { "kind": "goto", "to": "whales", "offsetM": 450, "bearingDeg": 180, "speedKn": 20 },
+      { "kind": "hold", "offsetM": 450, "bearingDeg": 180, "untilMin": 64 },
+      { "kind": "goto", "to": [48.4225, -123.3830], "speedKn": 20 } ] },
+    { "mmsi": 999000004, "name": "SIM BLACKFISH", "startMin": 9, "start": [48.4225, -123.3830], "phases": [
+      { "kind": "goto", "to": "whales", "offsetM": 650, "bearingDeg": 270, "speedKn": 20 },
+      { "kind": "hold", "offsetM": 650, "bearingDeg": 270, "untilMin": 66 },
+      { "kind": "goto", "to": [48.4225, -123.3830], "speedKn": 20 } ] },
+    { "mmsi": 999000005, "name": "SIM HARBOUR IDLER", "startMin": 0, "start": [48.4225, -123.3830], "phases": [
+      { "kind": "idle", "sogKn": 0.2, "untilMin": 90 } ] },
+    { "mmsi": 999000006, "name": "SIM FERRY", "startMin": 0, "start": [48.4000, -123.2000], "phases": [
+      { "kind": "goto", "to": [48.6500, -123.2500], "speedKn": 15 } ] }
+  ]
+}
