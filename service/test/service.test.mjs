@@ -96,6 +96,24 @@ test('every boat in an estimate has its watching evidence linked, including the 
   assert.ok(first.length >= 1);
 });
 
+test('a second replay still forms an estimate after an earlier one ran ahead', () => {
+  const sent = [];
+  let wall = T0;
+  const core = createInferenceService({ config: loadConfig(), harbours: loadHarbours(), vessels: loadVessels(),
+    publish: (topic, schemaName, payload) => sent.push({ topic, payload }), now: () => wall });
+  // Two replays at 10x, the second starting when the first finishes (9 min of
+  // wall time later) — so the first one's stamps run 80 min ahead of the second's.
+  for (const startNs of [T0, T0 + 9n * MIN]) {
+    for (const { atNs, pos } of scenarioPositions(scenario, startNs)) {
+      wall = startNs + (atNs - startNs) / 10n;
+      core.onPosition(pos);
+    }
+  }
+  const runs = new Set(sent.filter((m) => m.topic === 'orca.estimate' && m.payload.event === 'upsert')
+    .map((m) => m.payload.estimate.id));
+  assert.equal(runs.size, 2, 'each replay forms its own estimate');
+});
+
 test('a simulated boat never joins a real estimate', () => {
   const vessels = loadVessels();
   vessels.set(111, { mmsi: 111, name: 'REAL ONE', operator: 'Real Co', verified: true, simulated: false });

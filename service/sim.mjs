@@ -81,7 +81,7 @@ export function scenarioPositions(sc, startNs) {
       const j = offset(p, rand() * sc.jitterM, rand() * 360);
       const atNs = startNs + BigInt(tS) * NS_PER_S;
       out.push({ atNs, pos: { mmsi: v.mmsi, name: v.name, lat: j.lat, lon: j.lon, sog, cog,
-        lastSeenNs: String(atNs), simulated: true, serverId: 'orca' } });
+        lastSeenNs: String(atNs), simulated: true, simRunId: `${sc.name}@${startNs}`, serverId: 'orca' } });
     }
   }
   return out.sort((a, b) => (a.atNs < b.atNs ? -1 : a.atNs > b.atNs ? 1 : a.pos.mmsi - b.pos.mmsi));

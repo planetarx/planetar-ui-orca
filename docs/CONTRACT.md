@@ -6,7 +6,7 @@ The SSOT for what `service/` publishes and the UI reads. `src/types/orca.ts` mir
 
 `vessel.ais.position` from planetar-ais (payload = the position object; see planetar-ui `docs/AIS-INTEGRATION.md`). The service uses `mmsi`, `name`, `lat`, `lon`, `sog`, `lastSeenNs`, `serverId` and `simulated`. Only vessels listed in `service/data/whale-watch-vessels.json` are tracked.
 
-`sim.vessel.ais.position`: the same payload from `service/simulate.mjs`, always `simulated: true`. A separate topic so the shared planetar-ontology and planetar-ui never store the simulated vessels.
+`sim.vessel.ais.position`: the same payload from `service/simulate.mjs`, always `simulated: true`, plus `simRunId` (one per replay; each replay is inferred on its own). A separate topic so the shared planetar-ontology and planetar-ui never store the simulated vessels.
 
 ## `orca.evidence` — schema `orca.Evidence.v1`
 

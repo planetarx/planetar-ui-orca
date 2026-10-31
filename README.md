@@ -19,6 +19,16 @@ The bridge and the service connect to the running planetar broker (12001 publish
 
 ## Status (2026-10-31)
 
-Being built from the plan in `docs/superpowers/plans/`.
+v1 built and running on bb (plan: `docs/superpowers/plans/`).
+
+![Simulated Race Rocks encounter](docs/screenshots/race-rocks-sim.png)
+
+*A simulated encounter (`node service/simulate.mjs service/scenarios/race-rocks.json --speed 10`): four boats from three operators hold off a whale group; the estimate is labelled "Whales", not "orca", and every piece of evidence behind it is listed.*
+
+- **Boats (live):** planetar-ais's `planetar:ais-orca` pm2 process streams and records AIS for Victoria, Race Rocks, Haro Strait and the San Juans (`../planetar-ais/data/ais-orca/`).
+- **No real boats are listed yet.** Only vessels in `service/data/whale-watch-vessels.json` are tracked, and it holds only the simulated `99900000x` boats. Add real whale-watch operators' vessels by hand (`mmsi`, `name`, `operator`, `"verified": true`); the recorded AIS is the place to find candidates.
+- **Thresholds** are in `service/config/inference.json`, set by judgement and checked only against the simulated scenario. Real tuning waits for the 2027 whale-watch season and the recorded AIS.
+- **Next sources:** hydrophone call detection (Orcasound's OrcaHello detections), then a sighting-report feed. VHF radio and social media are listed and greyed out.
+- **Simulation** publishes on `sim.vessel.ais.position`, so planetar-ontology and planetar-ui never store the fake vessels; each replay is inferred in its own world.
 
 License: GPL-3.0-or-later.

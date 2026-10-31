@@ -25,3 +25,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Vessels and whales only; never profile the people behind sighting reports or posts.
 - `tsconfig.app.json` keeps planetar-ui's `erasableSyntaxOnly` + `verbatimModuleSyntax` (no enums, `import type`); `@/` → `src/`.
 - The bridge accepts browser connections only from `BRIDGE_ALLOWED_ORIGINS` (default the app's own :5290 origins); planetar-ui's bridge has no such check. Keep it: the bridge publishes onto the live bus.
+- Simulated positions go on `sim.vessel.ais.position` (never `vessel.ais.position`), so the shared planetar-ontology doesn't store fake vessels. The service infers real boats and each replay (`simRunId`) in separate worlds; keep it that way.
+- Evidence and links arrive off the bus: open only http(s) URLs (`safeHttpUrl`).
+- react-resizable-panels v4 reads a bare number as **pixels**; give panel sizes as `"%"` strings.

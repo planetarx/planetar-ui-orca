@@ -1,10 +1,10 @@
 // The inference service minus its I/O: AIS positions in, evidence and
 // estimates out through `publish`, a snapshot for page reloads.
 //
-// Simulated and real boats live in separate "worlds" (own tracker, estimator
-// and clock), so a simulated boat can never join a real estimate, and a fast
-// simulation replay, stamped ahead of the wall clock, can't make real boats
-// look stale.
+// Real boats and each simulation replay live in separate "worlds" (own
+// tracker, estimator and clock), so a simulated boat never joins a real
+// estimate, and one replay's stamps — which run ahead of the wall clock at
+// --speed > 1 — can't make real boats, or a later replay's boats, look stale.
 
 import { BoatTracker } from './tracker.mjs';
 import { Estimator } from './estimator.mjs';
@@ -20,8 +20,9 @@ export function createInferenceService({ config, harbours, vessels, publish, now
   const lastIgnored = new Map(); // mmsi → ns of the last ignored event published
   const startedNs = String(now());
 
-  function world(simulated) {
-    const key = simulated ? 'sim' : 'real';
+  function world(pos) {
+    const simulated = Boolean(pos.simulated);
+    const key = simulated ? `sim:${pos.simRunId ?? 'default'}` : 'real';
     if (!worlds.has(key)) {
       worlds.set(key, { simulated, tracker: new BoatTracker(config, harbours, vessels),
         estimator: new Estimator(config), dataNs: null, wallAtData: null,
@@ -63,7 +64,7 @@ export function createInferenceService({ config, harbours, vessels, publish, now
   }
 
   function onPosition(pos) {
-    const w = world(Boolean(pos.simulated));
+    const w = world(pos);
     if (w.simulated) {
       const t = BigInt(pos.lastSeenNs);
       if (w.dataNs == null || t > w.dataNs) w.dataNs = t;
