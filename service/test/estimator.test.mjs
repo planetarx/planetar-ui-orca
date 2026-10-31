@@ -1,0 +1,92 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { Estimator } from '../estimator.mjs';
+import { loadConfig } from '../load.mjs';
+
+const config = loadConfig();
+const MIN = 60_000_000_000n;
+const T0 = 1_800_000_000_000_000_000n;
+const at = (m) => T0 + BigInt(m) * MIN;
+const BASE = { lat: 48.29, lon: -123.53 };
+/** A watching boat `dEastM` metres east of BASE (1° lon ≈ 74 km here). */
+const boat = (mmsi, dEastM, operator = 'Op A', sinceMin = 0) => ({
+  mmsi, name: `B${mmsi}`, operator, lat: BASE.lat, lon: BASE.lon + dEastM / 74_000,
+  sinceNs: at(sinceMin), lastNs: at(sinceMin), simulated: true,
+});
+const evidence = (mmsi, extra = {}) => ({
+  id: `ev-${mmsi}-${Math.random()}`, source: 'boats', atNs: String(T0), text: 't', counted: false,
+  reason: null, estimateId: null, mmsi, lat: null, lon: null, raw: null, simulated: true, ...extra,
+});
+
+test('two boats 600 m apart make one estimate', () => {
+  const e = new Estimator(config);
+  const { upserts } = e.step([boat(1, 0), boat(2, 600)], at(10));
+  assert.equal(upserts.length, 1);
+  const [est] = upserts;
+  assert.equal(est.label, 'whales');
+  assert.equal(est.species, null);
+  assert.equal(est.status, 'active');
+  assert.ok(est.radiusM >= 700 && est.radiusM <= 1100, `radiusM ${est.radiusM}`);
+  assert.ok(est.confidence > 0 && est.confidence < 1);
+  assert.deepEqual(est.boats.sort(), [1, 2]);
+  assert.equal(est.simulated, true);
+});
+
+test('one boat makes no estimate and attach marks it below minimum', () => {
+  const e = new Estimator(config);
+  assert.deepEqual(e.step([boat(1, 0)], at(10)).upserts, []);
+  const ev = e.attach(evidence(1));
+  assert.equal(ev.counted, false);
+  assert.equal(ev.reason, '1 boat, below minimum of 2');
+});
+
+test('attach links a watching boat\'s evidence to its estimate', () => {
+  const e = new Estimator(config);
+  const [est] = e.step([boat(1, 0), boat(2, 600)], at(10)).upserts;
+  const ev = e.attach(evidence(2));
+  assert.equal(ev.counted, true);
+  assert.equal(ev.estimateId, est.id);
+  assert.ok(e.current()[0].evidenceIds.includes(ev.id));
+});
+
+test('attach keeps a reason the tracker already gave', () => {
+  const e = new Estimator(config);
+  const ev = e.attach(evidence(9, { reason: 'in harbour: Inner Harbour' }));
+  assert.equal(ev.counted, false);
+  assert.equal(ev.reason, 'in harbour: Inner Harbour');
+});
+
+test('more boats and operators raise confidence', () => {
+  const two = new Estimator(config).step([boat(1, 0), boat(2, 300)], at(10)).upserts[0];
+  const four = new Estimator(config).step(
+    [boat(1, 0, 'Op A'), boat(2, 300, 'Op B'), boat(3, 600, 'Op C'), boat(4, 900, 'Op A')], at(10)).upserts[0];
+  assert.ok(four.confidence > two.confidence, `${four.confidence} vs ${two.confidence}`);
+});
+
+test('id is stable as boats join and leave', () => {
+  const e = new Estimator(config);
+  const a = e.step([boat(1, 0), boat(2, 300)], at(1)).upserts[0].id;
+  const b = e.step([boat(1, 0), boat(2, 300), boat(3, 600)], at(2)).upserts[0].id;
+  const c = e.step([boat(2, 300), boat(3, 600)], at(3)).upserts[0].id;
+  assert.equal(a, b);
+  assert.equal(b, c);
+});
+
+test('estimate ends endAfterMin after the last cluster, once', () => {
+  const e = new Estimator(config);
+  e.step([boat(1, 0), boat(2, 300)], at(0));
+  assert.deepEqual(e.step([], at(14)).ended, []);
+  const { ended } = e.step([], at(15));
+  assert.equal(ended.length, 1);
+  assert.equal(ended[0].status, 'ended');
+  assert.deepEqual(e.step([], at(16)).ended, []);
+  assert.deepEqual(e.current(), []);
+});
+
+test('two clusters 10 km apart make two estimates', () => {
+  const e = new Estimator(config);
+  const { upserts } = e.step([boat(1, 0), boat(2, 300), boat(3, 10_000), boat(4, 10_300)], at(5));
+  assert.equal(upserts.length, 2);
+  assert.notEqual(upserts[0].id, upserts[1].id);
+});
