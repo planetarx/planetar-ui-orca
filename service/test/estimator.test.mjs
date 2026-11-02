@@ -103,3 +103,89 @@ test('when two estimates merge, the absorbed one ends at once', () => {
   assert.equal(ended[0].mergedInto, upserts[0].id);
   assert.equal(e.current().length, 1);
 });
+
+// --- hydrophone-only estimates --------------------------------------------------------------
+
+/** A confirmed call heard at BASE + dEastM, `min` minutes after T0. */
+const call = (dEastM, min, extra = {}) => ({
+  id: `call-${dEastM}-${min}-${Math.random()}`, source: 'hydrophones', atNs: String(at(min)), text: 't',
+  counted: false, reason: null, estimateId: null, mmsi: null, lat: BASE.lat, lon: BASE.lon + dEastM / 74_000,
+  raw: null, simulated: false, species: null, ...extra,
+});
+
+test('a confirmed call with no estimate nearby makes one on the hydrophone', () => {
+  const e = new Estimator(config);
+  const r = e.hear(call(0, 0, { species: "Bigg's killer whales" }), at(5));
+  assert.equal(r.upserts.length, 1);
+  const [est] = r.upserts;
+  assert.deepEqual([est.lat, est.lon, est.radiusM], [BASE.lat, BASE.lon, config.hydrophoneHearingM]);
+  assert.deepEqual([est.boats, est.operators], [[], []]);
+  assert.equal(est.species, "Bigg's killer whales");
+  assert.equal(est.status, 'active');
+  assert.equal(est.simulated, false);
+  assert.ok(Math.abs(est.confidence - (1 - Math.exp(-config.confidence.perCall))) < 1e-9);
+  assert.deepEqual([r.evidence.counted, r.evidence.estimateId, r.evidence.reason], [true, est.id, null]);
+  assert.deepEqual(est.evidenceIds, [r.evidence.id]);
+});
+
+test('more calls from the same place join it, extend it and raise confidence', () => {
+  const e = new Estimator(config);
+  const first = e.hear(call(0, 0), at(1)).upserts[0];
+  const c1 = first.confidence;
+  const r = e.hear(call(300, 70), at(71)); // 70 min later: past hydrophoneWithinMin, inside the estimate's life
+  assert.equal(r.upserts[0].id, first.id);
+  assert.equal(r.upserts[0].updatedNs, String(at(70)));
+  assert.ok(r.upserts[0].confidence > c1);
+  assert.equal(e.current().length, 1);
+});
+
+test('a call prefers a boat estimate in range over a nearer hydrophone-only one', () => {
+  const e = new Estimator(config);
+  const heard = e.hear(call(0, 0), at(1)).upserts[0];
+  // Boats 14 km off: too far to absorb the hydrophone estimate; the call between them is 5 km
+  // from the hydrophone and 9 km from the boats.
+  const boatEst = e.step([boat(1, 14000, 'Op A', 0), boat(2, 14400, 'Op B', 0)], at(2)).upserts
+    .find((x) => x.boats.length);
+  const r = e.hear(call(5000, 3), at(3));
+  assert.equal(r.evidence.estimateId, boatEst.id);
+  assert.notEqual(r.evidence.estimateId, heard.id);
+});
+
+test('a hydrophone-only estimate ends hydrophoneEstimateMin after its latest call', () => {
+  const e = new Estimator(config);
+  e.hear(call(0, 0), at(1));
+  assert.equal(e.step([], at(config.hydrophoneEstimateMin - 1)).ended.length, 0);
+  const { ended } = e.step([], at(config.hydrophoneEstimateMin));
+  assert.equal(ended.length, 1);
+  assert.equal(ended[0].status, 'ended');
+  assert.equal(e.current().length, 0);
+});
+
+test('a call confirmed after its estimate would have ended arrives already ended', () => {
+  const e = new Estimator(config);
+  const r = e.hear(call(0, 0), at(config.hydrophoneEstimateMin + 60));
+  assert.equal(r.upserts.length, 0);
+  assert.equal(r.ended.length, 1);
+  assert.equal(r.ended[0].status, 'ended');
+  assert.equal(r.evidence.estimateId, r.ended[0].id);
+  assert.equal(e.current().length, 0);
+});
+
+test('boats gathering near a hydrophone-only estimate absorb it', () => {
+  const e = new Estimator(config);
+  const heard = e.hear(call(0, 0, { species: 'humpback whales' }), at(1)).upserts[0];
+  const { upserts, ended } = e.step([boat(1, 1000, 'Op A', 0), boat(2, 1400, 'Op B', 0)], at(10));
+  const est = upserts.find((x) => x.boats.length);
+  assert.equal(est.species, 'humpback whales');
+  assert.ok(heard.evidenceIds.every((id) => est.evidenceIds.includes(id)));
+  assert.equal(ended.length, 1);
+  assert.deepEqual([ended[0].id, ended[0].mergedInto], [heard.id, est.id]);
+  assert.deepEqual(e.current().map((x) => x.id), [est.id]);
+});
+
+test('the same call re-reviewed does not count twice', () => {
+  const e = new Estimator(config);
+  const c = call(0, 0);
+  const first = e.hear(c, at(1)).upserts[0].confidence;
+  assert.equal(e.hear({ ...c, species: 'humpback whales' }, at(2)).upserts[0].confidence, first);
+});

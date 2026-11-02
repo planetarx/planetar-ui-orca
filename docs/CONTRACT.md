@@ -28,7 +28,7 @@ One observation from one source, published as it happens.
 | `simulated` | boolean | true for anything from a simulated scenario |
 | `species` | string \| null, optional | hydrophones only: what the moderator's tags state |
 
-Hydrophone evidence is re-published under the same `id` when its review changes. Confirmed whales count on the nearest active real estimate within `hydrophoneRangeM` whose span, widened by `hydrophoneWithinMin`, covers the detection; anything else is shown with `counted: false` and a reason.
+Hydrophone evidence is re-published under the same `id` when its review changes. Confirmed whales count on the nearest active real boat estimate within `hydrophoneRangeM` whose span, widened by `hydrophoneWithinMin`, covers the detection; failing that, on a hydrophone-only estimate still alive there; failing that, they make a **hydrophone-only estimate** (below). Unconfirmed or rejected detections are shown with `counted: false` and a reason.
 
 ## `orca.estimate` — schema `orca.Estimate.v1`
 
@@ -48,6 +48,8 @@ Payload `{ event: 'upsert' | 'ended', estimate }`:
 | `evidenceIds` | string[] | the evidence behind it |
 | `simulated` | boolean | true if any of its boats is simulated |
 | `mergedInto` | string, optional | on an `ended` estimate whose boats all joined another: that estimate's id |
+
+A **hydrophone-only estimate** has `boats: []` and `operators: []`: it is centred on the hydrophone with `radiusM` = `hydrophoneHearingM`, its confidence is `1 − exp(−perCall × calls)`, and `updatedNs` is its latest call. It ends `hydrophoneEstimateMin` after that call; a call confirmed later than that arrives as an `ended` estimate (moderators often review 1–3 h after the call). When boats gather within `hydrophoneRangeM` of it, their estimate takes its evidence and species and it ends with `mergedInto`.
 
 ## HTTP (port 9410)
 

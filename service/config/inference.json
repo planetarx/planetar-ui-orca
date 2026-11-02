@@ -16,7 +16,8 @@
     "perBoat": 0.35,
     "perExtraOperator": 0.25,
     "perLoiterMin": 0.03,
-    "loiterCapMin": 30
+    "loiterCapMin": 30,
+    "perCall": 0.3
   },
   "ignoredEveryMin": 30,
   "snapshotEndedMin": 120,
@@ -25,5 +26,7 @@
   "trackKeepMin": 120,
   "hydrophoneRangeM": 10000,
   "hydrophoneWithinMin": 30,
+  "hydrophoneHearingM": 5000,
+  "hydrophoneEstimateMin": 120,
   "orcaHelloPollMin": 5
 }

@@ -51,6 +51,23 @@ test('a confirmed hydrophone detection names the species and links its audio', a
     .toHaveAttribute('href', 'https://livemlaudiospecstorage.blob.core.windows.net/audiowavs/x.wav');
 });
 
+test('an estimate from hydrophone calls alone says no boats are watching', async ({ page }) => {
+  await page.goto('/');
+  const ev = evidence({ source: 'hydrophones', mmsi: null, counted: true, lat: 48.0389, lon: -122.6095,
+    text: `Bush Point hydrophone: moderator confirmed humpback whales ${Date.now()}`, species: 'humpback whales',
+    raw: null, simulated: false });
+  const est = estimate({ confidence: 0.26, lat: 48.0389, lon: -122.6095, radiusM: 5000, boats: [], operators: [],
+    species: 'humpback whales', evidenceIds: [ev.id] });
+  await page.locator('.source-row', { hasText: 'Hydrophones' }).click();
+  await publishUntil(page, page.getByText(ev.text as string), pubEvidence(ev));
+  const row = page.locator('.estimate-row', { hasText: '26%' }).first();
+  await publishUntil(page, row, pubEstimate(est));
+  await row.click();
+  const insp = page.locator('.pane-inspector');
+  await expect(insp).toContainText('heard on 1 confirmed hydrophone call · no boats watching');
+  await expect(insp).not.toContainText('0 boats');
+});
+
 test('clicking boat evidence drills down to the boat', async ({ page }) => {
   await page.goto('/');
   const mmsi = 999000777;

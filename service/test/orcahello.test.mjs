@@ -179,15 +179,40 @@ test('a confirmed detection near an active estimate is counted on it and sets it
   assert.equal(raceRocksEstimate(h).species, "Bigg's killer whales");
 });
 
-test('a confirmed detection far from every estimate is shown but not counted', () => {
+test('a confirmed detection far from every estimate makes its own on the hydrophone', () => {
   const h = harness({ real: true });
   h.replay(45);
   const d = detection({ reviewed: true, found: 'yes', tagList: ['srkw'], timestamp: iso(h.now()),
     location: { id: 'pt', name: 'Port Townsend', latitude: 48.1357, longitude: -122.7606 } });
+  h.sent.length = 0;
   h.core.onHydrophone(d);
-  const ev = h.sent.filter((s) => s.topic === 'orca.evidence').at(-1).payload;
-  assert.equal(ev.counted, false);
-  assert.equal(ev.reason, 'no boat estimate within 10 km at the time');
+  const ev = h.sent.find((s) => s.topic === 'orca.evidence').payload;
+  const up = h.sent.find((s) => s.topic === 'orca.estimate').payload;
+  assert.equal(up.event, 'upsert');
+  assert.deepEqual([up.estimate.lat, up.estimate.lon, up.estimate.boats], [48.1357, -122.7606, []]);
+  assert.equal(up.estimate.species, 'Southern Resident killer whales');
+  assert.deepEqual([ev.counted, ev.estimateId], [true, up.estimate.id]);
+  assert.ok(h.core.snapshot().estimates.some((e) => e.id === up.estimate.id && e.status === 'active'));
+});
+
+test('a detection confirmed hours after the call shows as an ended estimate', () => {
+  const h = harness({ real: true });
+  h.replay(5);
+  const d = detection({ reviewed: true, found: 'no', tagList: ['humpback'],
+    timestamp: iso(h.now() - 180n * MIN) });
+  h.sent.length = 0;
+  h.core.onHydrophone(d);
+  const up = h.sent.find((s) => s.topic === 'orca.estimate').payload;
+  assert.deepEqual([up.event, up.estimate.status], ['ended', 'ended']);
+  assert.ok(h.core.snapshot().estimates.some((e) => e.id === up.estimate.id && e.status === 'ended'));
+});
+
+test('an unreviewed detection makes no estimate', () => {
+  const h = harness({ real: true });
+  h.sent.length = 0;
+  h.core.onHydrophone(detection({ timestamp: iso(h.now()) }));
+  assert.equal(h.sent.filter((s) => s.topic === 'orca.estimate').length, 0);
+  assert.equal(h.sent.at(-1).payload.reason, 'awaiting moderator review');
 });
 
 test('a simulated estimate never takes real hydrophone evidence', () => {
@@ -197,7 +222,9 @@ test('a simulated estimate never takes real hydrophone evidence', () => {
   assert.equal(est.simulated, true);
   h.core.onHydrophone(detection({ reviewed: true, found: 'yes', tagList: ['srkw'], timestamp: iso(h.now()),
     location: { id: 'x', name: 'Test Site', latitude: est.lat, longitude: est.lon } }));
-  assert.equal(h.sent.filter((s) => s.topic === 'orca.evidence').at(-1).payload.counted, false);
+  const ev = h.sent.filter((s) => s.topic === 'orca.evidence').at(-1).payload;
+  assert.notEqual(ev.estimateId, est.id);
+  assert.ok(!raceRocksEstimate(h).evidenceIds.includes(ev.id));
 });
 
 test('a re-reviewed detection keeps its evidence id', () => {

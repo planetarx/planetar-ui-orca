@@ -121,17 +121,20 @@ export function createInferenceService({ config, harbours, vessels, publish, now
     publish('orca.evidence', 'orca.Evidence.v1', ev);
   }
 
-  /** One OrcaHello detection (new, or re-reviewed). Real hydrophones only meet real boats. */
+  /** One OrcaHello detection (new, or re-reviewed). Real hydrophones only meet real estimates. */
   function onHydrophone(d) {
     const t = Date.parse(d.timestamp);
     if (!d?.id || Number.isNaN(t)) return;
     if (!hydrophoneIds.has(d.id)) hydrophoneIds.set(d.id, uuidv7(t));
     let ev = toEvidence(d, hydrophoneIds.get(d.id));
     if (classify(d).whales && ev.lat != null && ev.lon != null) {
-      const r = world({ simulated: false }).estimator.attachNear(ev, config.hydrophoneRangeM,
-        BigInt(config.hydrophoneWithinMin) * NS_PER_MIN);
+      const r = world({ simulated: false }).estimator.hear(ev, now());
       ev = r.evidence;
-      if (r.estimate) publish('orca.estimate', 'orca.Estimate.v1', { event: 'upsert', estimate: r.estimate });
+      for (const estimate of r.upserts) publish('orca.estimate', 'orca.Estimate.v1', { event: 'upsert', estimate });
+      for (const estimate of r.ended) {
+        ended.push({ estimate, atNs: now() });
+        publish('orca.estimate', 'orca.Estimate.v1', { event: 'ended', estimate });
+      }
     }
     record(ev);
   }

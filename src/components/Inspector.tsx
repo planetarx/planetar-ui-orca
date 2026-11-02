@@ -81,7 +81,9 @@ export function Inspector() {
             {stale && e.status === 'active' && <span className="tag-ended">stale: bus or inference down</span>}
           </div>
           <Row k="confidence" v={<b>{pct(e.confidence)}</b>} />
-          <Row k="evidence" v={`${e.boats.length} boats · ${e.operators.length} operators · watched for ${watchedMin} min`} />
+          <Row k="evidence" v={e.boats.length
+            ? `${e.boats.length} boats · ${e.operators.length} operators · watched for ${watchedMin} min`
+            : `heard on ${heard} confirmed hydrophone call${heard === 1 ? '' : 's'} · no boats watching`} />
           <Row k="first seen / updated" v={`${timeOf(e.firstNs)} / ${timeOf(e.updatedNs)}`} />
           <Row k="area" v={`${e.lat.toFixed(4)}, ${e.lon.toFixed(4)} · ±${Math.round(e.radiusM)} m`} />
           <Row k="hydrophones nearby" v={near.length

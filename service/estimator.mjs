@@ -1,6 +1,8 @@
 // Watching boats → whale estimates. Boats close together are watching the
 // same thing; the whales are near them but not on them (boats keep a
 // regulated standoff), so the estimate is an area around the cluster.
+// A moderator-confirmed hydrophone call with no boat estimate near it makes
+// its own estimate on the hydrophone, which boats gathering nearby absorb.
 
 import { centroid, distanceM } from './geo.mjs';
 import { uuidv7 } from './ids.mjs';
@@ -31,7 +33,7 @@ function clusters(boats, radiusM) {
 export class Estimator {
   constructor(config) {
     this.c = config;
-    this.active = new Map(); // id → {estimate, lastClusterNs}
+    this.active = new Map(); // id → {estimate, lastClusterNs} or, heard only, {estimate, heard: {calls, untilNs}}
     this.boatEstimate = new Map(); // mmsi → estimate id (kept until that estimate ends)
     this.boatClusterSize = new Map(); // mmsi → size of its cluster at the last step
   }
@@ -50,6 +52,7 @@ export class Estimator {
     this.boatClusterSize = new Map();
     const upserts = [];
     const claimed = new Set();
+    const absorbed = new Map(); // heard-only estimate id → the boat estimate that took it
     for (const group of clusters(watching, this.c.clusterRadiusM)) {
       for (const b of group) this.boatClusterSize.set(b.mmsi, group.length);
       if (group.length < this.c.minBoats) continue;
@@ -80,6 +83,12 @@ export class Estimator {
       };
       this.active.set(id, { estimate, lastClusterNs: nowNs });
       for (const b of group) this.boatEstimate.set(b.mmsi, id);
+      for (const [hid, a] of this.active) {
+        if (!a.heard || absorbed.has(hid) || distanceM(a.estimate, estimate) > this.c.hydrophoneRangeM) continue;
+        absorbed.set(hid, id);
+        estimate.evidenceIds = [...new Set([...estimate.evidenceIds, ...a.estimate.evidenceIds])];
+        estimate.species ??= a.estimate.species;
+      }
       upserts.push(estimate);
     }
 
@@ -88,6 +97,13 @@ export class Estimator {
     const boatTo = new Map(upserts.flatMap((u) => u.boats.map((m) => [m, u.id])));
     for (const [id, a] of this.active) {
       if (claimed.has(id)) continue;
+      if (a.heard) {
+        const into = absorbed.get(id);
+        if (!into && nowNs < a.heard.untilNs) continue;
+        this.active.delete(id);
+        ended.push({ ...a.estimate, status: 'ended', updatedNs: String(nowNs), ...(into && { mergedInto: into }) });
+        continue;
+      }
       // Every boat now belongs to another estimate: it merged, so end it now
       // rather than leave a frozen ghost for endAfterMin.
       const into = a.estimate.boats.length && a.estimate.boats.every((m) => boatTo.has(m))
@@ -118,29 +134,62 @@ export class Estimator {
   }
 
   /**
-   * Fill in counted / estimateId / reason for one place-and-time evidence item (a
-   * hydrophone): it counts on the nearest active estimate within rangeM of it whose
-   * span, widened by withinNs, covers its time. A species it states becomes the estimate's.
-   * → { evidence, estimate } (estimate null when nothing took it)
+   * One moderator-confirmed hydrophone call. It counts on the nearest active boat estimate
+   * within hydrophoneRangeM whose span, widened by hydrophoneWithinMin, covers its time;
+   * failing that, on the nearest hydrophone-only estimate still alive at that time; failing
+   * that, it makes a hydrophone-only estimate centred on the hydrophone, alive until
+   * hydrophoneEstimateMin after its latest call (already ended if the call was confirmed
+   * later than that). A species it states becomes the estimate's.
+   * → { evidence, upserts, ended }
    */
-  attachNear(evidence, rangeM, withinNs) {
+  hear(evidence, nowNs) {
     const t = BigInt(evidence.atNs);
-    let best = null;
-    let bestD = Infinity;
-    for (const a of this.active.values()) {
+    const withinNs = BigInt(this.c.hydrophoneWithinMin) * NS_PER_MIN;
+    const lifeNs = BigInt(this.c.hydrophoneEstimateMin) * NS_PER_MIN;
+    const nearest = (heard) => {
+      let best = null;
+      let bestD = Infinity;
+      for (const a of this.active.values()) {
+        if (Boolean(a.heard) !== heard) continue;
+        const e = a.estimate;
+        const until = heard ? a.heard.untilNs : BigInt(e.updatedNs) + withinNs;
+        if (t < BigInt(e.firstNs) - withinNs || t > until) continue;
+        const d = distanceM(e, evidence);
+        if (d <= this.c.hydrophoneRangeM && d < bestD) [best, bestD] = [a, d];
+      }
+      return best;
+    };
+    const counted = (e) => ({ ...evidence, counted: true, estimateId: e.id, reason: null });
+
+    const a = nearest(false) ?? nearest(true);
+    if (a) {
       const e = a.estimate;
-      if (t < BigInt(e.firstNs) - withinNs || t > BigInt(e.updatedNs) + withinNs) continue;
-      const d = distanceM(e, evidence);
-      if (d <= rangeM && d < bestD) [best, bestD] = [a, d];
+      const isNew = !e.evidenceIds.includes(evidence.id); // a re-review of a call already counted
+      if (isNew) e.evidenceIds = [...e.evidenceIds, evidence.id];
+      if (evidence.species && !e.species) e.species = evidence.species;
+      if (a.heard && isNew) {
+        a.heard.calls += 1;
+        if (t > BigInt(e.updatedNs)) e.updatedNs = String(t);
+        if (t < BigInt(e.firstNs)) e.firstNs = String(t);
+        a.heard.untilNs = BigInt(e.updatedNs) + lifeNs;
+        e.confidence = 1 - Math.exp(-this.c.confidence.perCall * a.heard.calls);
+      }
+      return { evidence: counted(e), upserts: [e], ended: [] };
     }
-    if (!best) {
-      return { evidence: { ...evidence, counted: false, estimateId: null,
-        reason: `no boat estimate within ${rangeM / 1000} km at the time` }, estimate: null };
+
+    const estimate = {
+      id: uuidv7(Number(t / 1_000_000n)), label: 'whales', species: evidence.species ?? null,
+      lat: evidence.lat, lon: evidence.lon, radiusM: this.c.hydrophoneHearingM,
+      confidence: 1 - Math.exp(-this.c.confidence.perCall),
+      status: 'active', firstNs: evidence.atNs, updatedNs: evidence.atNs,
+      boats: [], operators: [], evidenceIds: [evidence.id], simulated: Boolean(evidence.simulated),
+    };
+    const untilNs = t + lifeNs;
+    if (nowNs >= untilNs) {
+      return { evidence: counted(estimate), upserts: [], ended: [{ ...estimate, status: 'ended' }] };
     }
-    const e = best.estimate;
-    if (!e.evidenceIds.includes(evidence.id)) e.evidenceIds = [...e.evidenceIds, evidence.id];
-    if (evidence.species && !e.species) e.species = evidence.species;
-    return { evidence: { ...evidence, counted: true, estimateId: e.id, reason: null }, estimate: e };
+    this.active.set(estimate.id, { estimate, heard: { calls: 1, untilNs } });
+    return { evidence: counted(estimate), upserts: [estimate], ended: [] };
   }
 
   current() {
