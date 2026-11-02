@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { BoatTracker } from '../tracker.mjs';
 import { loadConfig, loadHarbours, loadVessels } from '../load.mjs';
@@ -143,4 +144,61 @@ test('a boat cruising slowly without a fast run out never watches', () => {
   const cruise = Array.from({ length: 30 }, (_, i) => ({ lat: 48.3, lon: -123.6 + 0.00073 * i, sog: 3.5, tMin: i / 2 }));
   feed(tr, LISTED, cruise);
   assert.deepEqual(tr.watching(at(15)), []);
+});
+
+// --- Real AIS, 2026-10-31 (planetar:ais-orca): ISLAND_EXPLORER 5 (Island Adventures) east of
+// Lopez. After a 21–24 kn run it stops and goes for 40 min (0–4 kn, bursts of 5–7 kn), then
+// runs at 16 kn. The old rule restarted the loiter clock at every burst ≥ slowKn, so the boat
+// never counted as watching during that encounter.
+const ISLAND_EXPLORER = 369264000;
+const realTrack = () => readFileSync(new URL('./fixtures/island-explorer-5-2026-10-31.jsonl', import.meta.url), 'utf8')
+  .trim().split('\n').map((l) => JSON.parse(l));
+const utc = (hhmm) => BigInt(Date.parse(`2026-10-31T${hhmm}:00Z`)) * 1_000_000n;
+
+test('real track: a boat stopping and going around whales counts as watching', () => {
+  const tr = new BoatTracker(config, loadHarbours(),
+    new Map([[ISLAND_EXPLORER, { mmsi: ISLAND_EXPLORER, operator: 'Island Adventures' }]]));
+  const watchStarts = [];
+  for (const p of realTrack()) {
+    for (const e of tr.update(p)) if (e.kind === 'watching') watchStarts.push(BigInt(e.atNs));
+    const t = BigInt(p.lastSeenNs);
+    if (t >= utc('21:50') && t < utc('22:15')) assert.equal(tr.watching(t).length, 1, `not watching at ${t}`);
+  }
+  assert.ok(watchStarts[0] >= utc('21:38') && watchStarts[0] <= utc('21:48'), `first watch at ${watchStarts[0]}`);
+  assert.equal(watchStarts.length, 2); // the 3-min stop at 22:30 is too short; 23:13–23:42 counts
+});
+
+test('a short burst between slowKn and transitKn before watching keeps the slow clock', () => {
+  const tr = tracker();
+  feed(tr, LISTED, run(RACE_ROCKS, 20, -10, 10));
+  feed(tr, LISTED, hold(RACE_ROCKS, 2, 0, 3));
+  feed(tr, LISTED, [{ lat: RACE_ROCKS.lat, lon: RACE_ROCKS.lon + 0.004, sog: 6, tMin: 3.5 }]);
+  feed(tr, LISTED, hold({ lat: RACE_ROCKS.lat, lon: RACE_ROCKS.lon + 0.005 }, 2, 4, 3));
+  assert.equal(tr.watching(at(7)).length, 1);
+});
+
+test('cruising at 6–8 kn after a fast run, with only a brief slow-down, never watches', () => {
+  const tr = tracker();
+  feed(tr, LISTED, run(RACE_ROCKS, 20, -10, 10));
+  const cruise = Array.from({ length: 120 }, (_, i) => ({ lat: RACE_ROCKS.lat, lon: RACE_ROCKS.lon + 0.0012 * i,
+    sog: i % 40 < 4 ? 3 : 7, tMin: i / 2 })); // 2 slow minutes in every 20
+  feed(tr, LISTED, cruise);
+  assert.deepEqual(tr.watching(at(60)), []);
+});
+
+test('a watching boat silent for 20 min (AIS gap) resumes watching with its original start', () => {
+  const tr = tracker();
+  watchingAtRaceRocks(tr);
+  assert.equal(tr.watching(at(26)).length, 0); // stale while silent
+  const ev = feed(tr, LISTED, [{ ...RACE_ROCKS, sog: 2, tMin: 26 }]);
+  assert.deepEqual(ev.filter((e) => e.kind === 'watching'), []);
+  const [w] = tr.watching(at(26));
+  assert.equal(w?.sinceNs, at(0));
+});
+
+test('a boat silent longer than resumeWithinMin starts over', () => {
+  const tr = tracker();
+  watchingAtRaceRocks(tr);
+  feed(tr, LISTED, [{ ...RACE_ROCKS, sog: 2, tMin: 6 + config.resumeWithinMin + 1 }]);
+  assert.deepEqual(tr.watching(at(6 + config.resumeWithinMin + 1)), []);
 });
