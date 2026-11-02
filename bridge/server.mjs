@@ -28,6 +28,8 @@ const BROKER_HOST = process.env.BROKER_HOST ?? '127.0.0.1';
 const BROKER_PUB_PORT = Number(process.env.BROKER_PUB_PORT ?? 12001);
 const BROKER_SUB_PORT = Number(process.env.BROKER_SUB_PORT ?? 12002);
 const SYNTHETIC = (process.env.BRIDGE_SYNTHETIC ?? '0') !== '0';
+// Production (orca.planetar.ca) runs the bridge public: subscribe only.
+const READ_ONLY = (process.env.BRIDGE_READ_ONLY ?? '0') !== '0';
 
 // ---------------- synthetic chatter (mock-mode only) ----------------
 
@@ -267,7 +269,7 @@ const wss = new WebSocketServer({
 });
 
 wss.on('listening', () => {
-  console.log(`[bridge] listening on ws://127.0.0.1:${PORT} · synthetic=${SYNTHETIC ? 'on' : 'off'}`);
+  console.log(`[bridge] listening on ws://127.0.0.1:${PORT} · synthetic=${SYNTHETIC ? 'on' : 'off'}${READ_ONLY ? ' · read-only' : ''}`);
   broker.start();
 });
 
@@ -385,6 +387,10 @@ wss.on('connection', (socket, req) => {
     }
 
     if (msg.type === 'publish' && msg.envelope) {
+      if (READ_ONLY) {
+        socket.send(JSON.stringify({ type: 'error', error: 'read-only bridge: publish refused' }));
+        return;
+      }
       const e = msg.envelope;
       const stamped = buildEnvelope({
         id: e.id,
