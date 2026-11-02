@@ -1,13 +1,14 @@
 import { PaneHeader } from '@/components/PaneHeader';
 import { HYDROPHONES } from '@/data/hydrophones';
 import { sourceById } from '@/data/sources';
-import { estimateLabel, pct, timeOf } from '@/lib/format';
+import { estimateLabel, pct, safeHttpUrl, timeOf } from '@/lib/format';
 import { useEstimatesStore } from '@/store/estimatesStore';
 import { useEvidenceStore } from '@/store/evidenceStore';
 import { useLayoutStore } from '@/store/layoutStore';
 import type { OrcaEvidence } from '@/types/orca';
 
 export function EvidenceItem({ e, onSelect }: { e: OrcaEvidence; onSelect?: () => void }) {
+  const url = e.raw?.kind === 'url' ? safeHttpUrl(e.raw.url) : null;
   return (
     <div className={`ev-item${e.counted ? '' : ' ev-ignored'}`} style={{ borderLeftColor: sourceById(e.source).colour }}
       onClick={onSelect} role={onSelect ? 'button' : undefined}>
@@ -19,6 +20,8 @@ export function EvidenceItem({ e, onSelect }: { e: OrcaEvidence; onSelect?: () =
       <div className="ev-meta">
         {timeOf(e.atNs)} · {sourceById(e.source).label}
         {e.reason && <> · <span className="ev-reason">{e.reason}</span></>}
+        {url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>
+          {e.source === 'hydrophones' ? 'Listen' : 'Open'}</a></>}
       </div>
     </div>
   );
@@ -40,16 +43,18 @@ export function SourceStream() {
     title = `${src.label} · live`;
     if (!src.connected) body = <div className="list-empty">Not connected yet. {src.blurb}</div>;
     else if (selection.id === 'hydrophones') {
-      body = HYDROPHONES.map((h) => (
+      const detections = bySource.hydrophones.map((e) => <EvidenceItem key={e.id} e={e} />);
+      body = [...detections, <div className="list-heading" key="sites-heading">Sites</div>, ...HYDROPHONES.map((h) => (
         <div className="ev-item" key={h.id} style={{ borderLeftColor: src.colour }}>
           <div className="ev-text">
             {h.listenUrl
               ? <a href={h.listenUrl} target="_blank" rel="noreferrer">{h.name} · Listen live ▸</a>
               : <>{h.name} · no public live audio</>}
           </div>
-          <div className="ev-meta">{h.network === 'orcasound' ? 'Orcasound' : 'Ocean Networks Canada'} · call detection not connected</div>
+          <div className="ev-meta">{h.network === 'orcasound'
+            ? 'Orcasound · OrcaHello call detection' : 'Ocean Networks Canada · no call detection'}</div>
         </div>
-      ));
+      ))];
     } else items = bySource[selection.id];
   } else if (selection.kind === 'estimate') {
     const est = estimates[selection.id];

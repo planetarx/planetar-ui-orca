@@ -9,6 +9,7 @@
 import { BoatTracker } from './tracker.mjs';
 import { Estimator } from './estimator.mjs';
 import { uuidv7 } from './ids.mjs';
+import { classify, toEvidence } from './orcahello.mjs';
 
 const NS_PER_MIN = 60_000_000_000n;
 const wallNs = () => BigInt(Date.now()) * 1_000_000n;
@@ -19,6 +20,7 @@ export function createInferenceService({ config, harbours, vessels, publish, now
   const ended = []; // {estimate, atNs}
   const lastIgnored = new Map(); // mmsi → ns of the last ignored event published
   const tracks = new Map(); // listed mmsi → [{lat, lon, sog, atNs}] for the last trackKeepMin
+  const hydrophoneIds = new Map(); // OrcaHello id → our evidence id, so a re-review replaces it
   const startedNs = String(now());
 
   function world(pos) {
@@ -109,6 +111,31 @@ export function createInferenceService({ config, harbours, vessels, publish, now
     }
   }
 
+  function record(ev) {
+    const i = evidence.findIndex((x) => x.id === ev.id);
+    if (i >= 0) evidence[i] = ev;
+    else {
+      evidence.push(ev);
+      if (evidence.length > config.evidenceKeep) evidence.shift();
+    }
+    publish('orca.evidence', 'orca.Evidence.v1', ev);
+  }
+
+  /** One OrcaHello detection (new, or re-reviewed). Real hydrophones only meet real boats. */
+  function onHydrophone(d) {
+    const t = Date.parse(d.timestamp);
+    if (!d?.id || Number.isNaN(t)) return;
+    if (!hydrophoneIds.has(d.id)) hydrophoneIds.set(d.id, uuidv7(t));
+    let ev = toEvidence(d, hydrophoneIds.get(d.id));
+    if (classify(d).whales && ev.lat != null && ev.lon != null) {
+      const r = world({ simulated: false }).estimator.attachNear(ev, config.hydrophoneRangeM,
+        BigInt(config.hydrophoneWithinMin) * NS_PER_MIN);
+      ev = r.evidence;
+      if (r.estimate) publish('orca.estimate', 'orca.Estimate.v1', { event: 'upsert', estimate: r.estimate });
+    }
+    record(ev);
+  }
+
   function tick() {
     for (const w of worlds.values()) step(w);
   }
@@ -124,5 +151,5 @@ export function createInferenceService({ config, harbours, vessels, publish, now
     };
   }
 
-  return { onPosition, tick, snapshot, track, startedNs };
+  return { onPosition, onHydrophone, tick, snapshot, track, startedNs };
 }

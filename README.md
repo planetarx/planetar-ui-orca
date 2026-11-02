@@ -28,7 +28,8 @@ v1 built and running on bb (plan: `docs/superpowers/plans/`).
 - **Boats (live):** planetar-ais's `planetar:ais-orca` pm2 process streams and records AIS for Victoria, Race Rocks, Haro Strait and the San Juans (`../planetar-ais/data/ais-orca/`).
 - **No real boats are listed yet.** Only vessels in `service/data/whale-watch-vessels.json` are tracked, and it holds only the simulated `99900000x` boats. Add real whale-watch operators' vessels by hand (`mmsi`, `name`, `operator`, `"verified": true`); the recorded AIS is the place to find candidates.
 - **Thresholds** are in `service/config/inference.json`, set by judgement and checked only against the simulated scenario. Real tuning waits for the 2027 whale-watch season and the recorded AIS.
-- **Next sources:** hydrophone call detection (Orcasound's OrcaHello detections), then a sighting-report feed. VHF radio and social media are listed and greyed out.
+- **Hydrophones (since 2026-11-02):** the service polls OrcaHello's public detections API (Orcasound's AI call detector, last 24 h, every 5 min; `ORCAHELLO=off` disables it, and Playwright runs with it off). Every detection shows in the Hydrophones stream with its audio. Only a moderator-confirmed one counts, on a real boat estimate within 10 km and 30 min, and the species the moderator tagged (Southern Resident, Bigg's, humpback) becomes the estimate's label. Hydrophone-only estimates are not built yet. The moderator's e-mail, which the API returns, is never kept.
+- **Next sources:** a sighting-report feed (Acartia, needs an API key). VHF radio and social media are listed and greyed out.
 - **Simulation** publishes on `sim.vessel.ais.position`, so planetar-ontology and planetar-ui never store the fake vessels; each replay is inferred in its own world.
 
 License: GPL-3.0-or-later.

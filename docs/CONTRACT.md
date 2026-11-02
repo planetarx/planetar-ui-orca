@@ -8,6 +8,8 @@ The SSOT for what `service/` publishes and the UI reads. `src/types/orca.ts` mir
 
 `sim.vessel.ais.position`: the same payload from `service/simulate.mjs`, always `simulated: true`, plus `simRunId` (one per replay; each replay is inferred on its own). A separate topic so the shared planetar-ontology and planetar-ui never store the simulated vessels.
 
+OrcaHello (`service/orcahello.mjs`): the public detections API (`aifororcasdetections.azurewebsites.net/api/detections`, last 24 h, polled every `orcaHelloPollMin`; off with `ORCAHELLO=off`). Kept fields: `id`, `timestamp`, `confidence`, `reviewed`, `found`, `tagList`, `location`, `audioUri`/`spectrogramUri`. The moderator's identity is never kept. "Whales" = reviewed and `found: yes` (SRKW) or a whale tag (`srkw`, `resident`, `transient`, `biggs`, `humpback`, `orca`, `whale`); the model's own label is not used.
+
 ## `orca.evidence` — schema `orca.Evidence.v1`
 
 One observation from one source, published as it happens.
@@ -24,6 +26,9 @@ One observation from one source, published as it happens.
 | `mmsi`, `lat`, `lon` | number \| null | where and which vessel, when known |
 | `raw` | `{kind:'ais-track', mmsi, fromNs, toNs}` \| `{kind:'url', url}` \| null | how to drill down to the raw data |
 | `simulated` | boolean | true for anything from a simulated scenario |
+| `species` | string \| null, optional | hydrophones only: what the moderator's tags state |
+
+Hydrophone evidence is re-published under the same `id` when its review changes. Confirmed whales count on the nearest active real estimate within `hydrophoneRangeM` whose span, widened by `hydrophoneWithinMin`, covers the detection; anything else is shown with `counted: false` and a reason.
 
 ## `orca.estimate` — schema `orca.Estimate.v1`
 
@@ -33,7 +38,7 @@ Payload `{ event: 'upsert' | 'ended', estimate }`:
 |---|---|---|
 | `id` | string | stable across updates while the same boats stay on it |
 | `label` | `"whales"` | always "whales" |
-| `species` | string \| null | only when a source states it; never inferred from boats |
+| `species` | string \| null | only when a source states it (a counted hydrophone detection); never inferred from boats; kept once set |
 | `lat`, `lon`, `radiusM` | number | probability area: boat centroid, radius = farthest boat + whale standoff |
 | `confidence` | number 0..1 | see `service/config/inference.json` |
 | `status` | `active` \| `ended` | |

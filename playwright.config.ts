@@ -23,6 +23,8 @@ export default defineConfig({
     url: 'http://127.0.0.1:5290',
     // Never reuse: a dev stack the founder is using must not receive test data.
     reuseExistingServer: false,
+    // No live OrcaHello detections in tests.
+    env: { ORCAHELLO: 'off' },
     timeout: 30_000,
   },
 });

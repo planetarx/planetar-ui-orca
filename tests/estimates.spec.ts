@@ -48,6 +48,17 @@ test('hydrophones list sites with live audio links', async ({ page }) => {
   await expect(link).toHaveAttribute('href', 'https://live.orcasound.net/listen/orcasound-lab');
 });
 
+test('hydrophone detections list above the sites', async ({ page }) => {
+  await page.goto('/');
+  const text = `Bush Point hydrophone: OrcaHello flagged possible calls (81%) ${Date.now()}`;
+  const ev = evidence({ source: 'hydrophones', mmsi: null, text, reason: 'awaiting moderator review' });
+  await page.locator('.source-row', { hasText: 'Hydrophones' }).click();
+  const stream = page.locator('.pane-stream');
+  await publishUntil(page, stream.getByText(text), () => publish('orca.evidence', 'orca.Evidence.v1', ev));
+  await expect(stream).toContainText('awaiting moderator review');
+  await expect(stream.getByRole('link', { name: /Orcasound Lab/ })).toBeVisible();
+});
+
 test('simulated evidence is tagged', async ({ page }) => {
   await page.goto('/');
   const ev = evidence({ simulated: true });

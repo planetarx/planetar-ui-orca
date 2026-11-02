@@ -23,6 +23,8 @@ export interface OrcaEvidence {
   lon: number | null;
   raw: EvidenceRaw | null;
   simulated: boolean;
+  /** Set when the source states it (a hydrophone moderator's tags). */
+  species?: string | null;
 }
 
 /** A place where whales probably are, with the evidence behind it. */

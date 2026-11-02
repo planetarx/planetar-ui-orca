@@ -21,14 +21,34 @@ test('selecting an estimate fills the inspector with its evidence', async ({ pag
   await expect(insp.getByText(ev.text as string)).toBeVisible();
 });
 
-test('an estimate near a hydrophone says call detection is not connected', async ({ page }) => {
+test('an estimate near a hydrophone with no confirmed detection says so', async ({ page }) => {
   await page.goto('/');
   const est = estimate({ confidence: 0.67, lat: 48.55, lon: -123.18 }); // beside Orcasound Lab
   const row = page.locator('.estimate-row', { hasText: '67%' }).first();
   await publishUntil(page, row, pubEstimate(est));
   await row.click();
   await expect(page.locator('.pane-inspector')).toContainText('Orcasound Lab');
-  await expect(page.locator('.pane-inspector')).toContainText('call detection not connected');
+  await expect(page.locator('.pane-inspector')).toContainText('no confirmed call detection');
+});
+
+test('a confirmed hydrophone detection names the species and links its audio', async ({ page }) => {
+  await page.goto('/');
+  const ev = evidence({ source: 'hydrophones', mmsi: null, counted: true, lat: 48.5467, lon: -123.1664,
+    text: `Andrews Bay hydrophone: moderator confirmed Bigg's killer whales ${Date.now()}`,
+    species: "Bigg's killer whales",
+    raw: { kind: 'url', url: 'https://livemlaudiospecstorage.blob.core.windows.net/audiowavs/x.wav' } });
+  const est = estimate({ confidence: 0.71, lat: 48.55, lon: -123.18, species: "Bigg's killer whales",
+    evidenceIds: [ev.id] });
+  await page.locator('.source-row', { hasText: 'Hydrophones' }).click(); // so the evidence is on screen
+  await publishUntil(page, page.getByText(ev.text as string), pubEvidence(ev));
+  const row = page.locator('.estimate-row', { hasText: '71%' }).first();
+  await publishUntil(page, row, pubEstimate(est));
+  await row.click();
+  const insp = page.locator('.pane-inspector');
+  await expect(insp.locator('.insp-title')).toHaveText("Bigg's killer whales");
+  await expect(insp).toContainText('1 confirmed call detection');
+  await expect(insp.getByRole('link', { name: 'Listen' }).first())
+    .toHaveAttribute('href', 'https://livemlaudiospecstorage.blob.core.windows.net/audiowavs/x.wav');
 });
 
 test('clicking boat evidence drills down to the boat', async ({ page }) => {

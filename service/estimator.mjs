@@ -69,7 +69,7 @@ export class Estimator {
       const c = centroid(group);
       const spread = Math.max(...group.map((b) => distanceM(c, b)));
       const estimate = {
-        id, label: 'whales', species: null,
+        id, label: 'whales', species: prev?.species ?? null, // only a source that states it sets it
         lat: c.lat, lon: c.lon, radiusM: Math.round(spread + this.c.whaleStandoffM),
         confidence: this.confidence(group, nowNs),
         status: 'active',
@@ -115,6 +115,32 @@ export class Estimator {
       ? `${size} boat, below minimum of ${this.c.minBoats}`
       : 'not watching';
     return { ...evidence, counted: false, estimateId: null, reason };
+  }
+
+  /**
+   * Fill in counted / estimateId / reason for one place-and-time evidence item (a
+   * hydrophone): it counts on the nearest active estimate within rangeM of it whose
+   * span, widened by withinNs, covers its time. A species it states becomes the estimate's.
+   * → { evidence, estimate } (estimate null when nothing took it)
+   */
+  attachNear(evidence, rangeM, withinNs) {
+    const t = BigInt(evidence.atNs);
+    let best = null;
+    let bestD = Infinity;
+    for (const a of this.active.values()) {
+      const e = a.estimate;
+      if (t < BigInt(e.firstNs) - withinNs || t > BigInt(e.updatedNs) + withinNs) continue;
+      const d = distanceM(e, evidence);
+      if (d <= rangeM && d < bestD) [best, bestD] = [a, d];
+    }
+    if (!best) {
+      return { evidence: { ...evidence, counted: false, estimateId: null,
+        reason: `no boat estimate within ${rangeM / 1000} km at the time` }, estimate: null };
+    }
+    const e = best.estimate;
+    if (!e.evidenceIds.includes(evidence.id)) e.evidenceIds = [...e.evidenceIds, evidence.id];
+    if (evidence.species && !e.species) e.species = evidence.species;
+    return { evidence: { ...evidence, counted: true, estimateId: e.id, reason: null }, estimate: e };
   }
 
   current() {

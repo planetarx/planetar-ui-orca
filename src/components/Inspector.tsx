@@ -69,6 +69,7 @@ export function Inspector() {
       const items = e.evidenceIds.map((id) => evidenceById[id]).filter(Boolean)
         .sort((a, b) => (BigInt(b.atNs) > BigInt(a.atNs) ? 1 : -1));
       const watchedMin = Number((BigInt(e.updatedNs) - BigInt(e.firstNs)) / NS_PER_MIN);
+      const heard = items.filter((x) => x.source === 'hydrophones' && x.counted).length;
       const near = HYDROPHONES.map((h) => ({ h, d: distanceM(e, h) }))
         .filter((x) => x.d <= NEARBY_HYDROPHONE_M).sort((a, b) => a.d - b.d);
       content = (
@@ -84,7 +85,8 @@ export function Inspector() {
           <Row k="first seen / updated" v={`${timeOf(e.firstNs)} / ${timeOf(e.updatedNs)}`} />
           <Row k="area" v={`${e.lat.toFixed(4)}, ${e.lon.toFixed(4)} · ±${Math.round(e.radiusM)} m`} />
           <Row k="hydrophones nearby" v={near.length
-            ? near.map((x) => `${x.h.name} (${(x.d / 1000).toFixed(1)} km)`).join(', ') + ' · call detection not connected'
+            ? near.map((x) => `${x.h.name} (${(x.d / 1000).toFixed(1)} km)`).join(', ') + ' · ' + (heard
+              ? `${heard} confirmed call detection${heard === 1 ? '' : 's'}` : 'no confirmed call detection')
             : `none within ${NEARBY_HYDROPHONE_M / 1000} km`} />
           <div className="list-heading">Why we think so</div>
           <EvidenceList items={items} />

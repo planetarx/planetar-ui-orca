@@ -22,5 +22,8 @@
   "snapshotEndedMin": 120,
   "evidenceKeep": 500,
   "trackWindowMin": 60,
-  "trackKeepMin": 120
+  "trackKeepMin": 120,
+  "hydrophoneRangeM": 10000,
+  "hydrophoneWithinMin": 30,
+  "orcaHelloPollMin": 5
 }
