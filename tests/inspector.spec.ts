@@ -120,3 +120,10 @@ test('evidence links open only http(s) URLs', async ({ page }) => {
   await expect(insp.locator('.ev-item', { hasText: bad.text as string })).not.toHaveAttribute('role', 'button');
   await expect(insp.locator('.ev-item', { hasText: good.text as string })).toHaveAttribute('role', 'button');
 });
+
+test('the hydrophones source credits Orcasound under its licence', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.source-row', { hasText: 'Hydrophones' }).click();
+  const insp = page.locator('.pane-inspector');
+  await expect(insp).toContainText('Orcasound (orcasound.net), CC BY-NC-SA 4.0');
+});

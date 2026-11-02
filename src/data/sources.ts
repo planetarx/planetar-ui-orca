@@ -13,7 +13,7 @@ export const SOURCES: SourceDef[] = [
   { id: 'boats', label: 'Whale-watch boats', colour: '#4ade80', connected: true,
     blurb: 'Live AIS of listed whale-watching boats. Boats that run out fast, then slow and stay put together, are probably watching whales.' },
   { id: 'hydrophones', label: 'Hydrophones', colour: '#60a5fa', connected: true,
-    blurb: 'Underwater microphones around the Salish Sea, with OrcaHello\'s automatic call detections. A detection counts only once a moderator confirms whales, and only on a boat estimate within 10 km.' },
+    blurb: 'Underwater microphones around the Salish Sea, with OrcaHello\'s automatic call detections. A detection counts only once a moderator confirms whales: on a boat estimate within 10 km, or else as an estimate of its own around the hydrophone. Detections and audio: Orcasound (orcasound.net), CC BY-NC-SA 4.0.' },
   { id: 'reports', label: 'Sighting reports', colour: '#facc15', connected: false,
     blurb: 'Reported sightings. No feed chosen yet.' },
   { id: 'vhf', label: 'VHF radio', colour: '#a78bfa', connected: false,
