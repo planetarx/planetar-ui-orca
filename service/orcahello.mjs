@@ -1,14 +1,15 @@
 // OrcaHello (Orcasound's AI call detector, github.com/orcasound/aifororcas-livesystem)
-// → hydrophone evidence. The detections API is public for reading. The model flags
+// → hydrophone evidence. Detections arrive off the bus on `acoustic.orcahello`, published
+// once per box by planetar-acoustic/orcahello (which polls the public API). The model flags
 // possible calls; a human moderator later confirms or rejects them, often hours after.
 // OrcaHello targets Southern Residents, so `found: "yes"` means SRKW confirmed; Bigg's
 // (transient) orcas and humpbacks come back `found: "no"` with whale tags. The moderator's
 // tags, never the model's guess, decide "whales" and the species.
 //
-// Only whitelisted fields are kept: the API also returns the moderator's e-mail address,
-// which is never copied (vessels and whales only; no people).
+// The ingest whitelists the fields: the API also returns the moderator's e-mail address,
+// which never reaches the bus (vessels and whales only; no people).
 
-export const ORCAHELLO_URL = 'https://aifororcasdetections.azurewebsites.net/api/detections';
+export const ORCAHELLO_TOPIC = 'acoustic.orcahello';
 
 const WHALE_TAGS = new Set(['srkw', 'resident', 'transient', 'biggs', 'humpback', 'orca', 'whale']);
 
@@ -48,34 +49,20 @@ export function toEvidence(d, id) {
   };
 }
 
-/**
- * Polls the last `timeframe` of detections, newest first, paging until a short page.
- * `onDetection(d)` fires for a new detection and again when its review changes.
- */
-export function createOrcaHelloPoller({ fetch = globalThis.fetch, onDetection, onError = () => {},
-  url = ORCAHELLO_URL, timeframe = '24h', recordsPerPage = 50, maxPages = 10 }) {
-  const state = new Map(); // OrcaHello id → review signature last reported
+/** Changes when the moderator's verdict does (same as the ingest's). */
+export function detectionSignature(d) {
+  return `${d.id}|${Boolean(d.reviewed)}|${d.found}|${(d.tagList ?? []).join(';')}`;
+}
 
-  async function poll() {
-    try {
-      for (let page = 1; page <= maxPages; page++) {
-        const q = new URLSearchParams({ Timeframe: timeframe, SortBy: 'timestamp', SortOrder: 'desc',
-          Page: String(page), RecordsPerPage: String(recordsPerPage), Location: 'all' });
-        const res = await fetch(`${url}?${q}`);
-        if (!res.ok) throw new Error(`OrcaHello HTTP ${res.status}`);
-        const items = await res.json();
-        for (const d of items) {
-          const sig = `${d.reviewed}|${d.found}|${(d.tagList ?? []).join(';')}`;
-          if (!d?.id || state.get(d.id) === sig) continue;
-          state.set(d.id, sig);
-          onDetection(d);
-        }
-        if (items.length < recordsPerPage) break;
-      }
-    } catch (e) {
-      onError(e);
-    }
-  }
-
-  return { poll };
+/** `(d) => true` the first time a detection is seen and whenever its review changes:
+ *  the ingest republishes its whole window periodically, for consumers that restarted. */
+export function createDetectionGate() {
+  const seen = new Map(); // OrcaHello id → signature
+  return (d) => {
+    if (!d?.id) return false;
+    const sig = detectionSignature(d);
+    if (seen.get(d.id) === sig) return false;
+    seen.set(d.id, sig);
+    return true;
+  };
 }

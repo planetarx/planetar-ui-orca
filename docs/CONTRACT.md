@@ -8,7 +8,7 @@ The SSOT for what `service/` publishes and the UI reads. `src/types/orca.ts` mir
 
 `sim.vessel.ais.position`: the same payload from `service/simulate.mjs`, always `simulated: true`, plus `simRunId` (one per replay; each replay is inferred on its own). A separate topic so the shared planetar-ontology and planetar-ui never store the simulated vessels.
 
-OrcaHello (`service/orcahello.mjs`): the public detections API (`aifororcasdetections.azurewebsites.net/api/detections`, last 24 h, polled every `orcaHelloPollMin`; off with `ORCAHELLO=off`). Kept fields: `id`, `timestamp`, `confidence`, `reviewed`, `found`, `tagList`, `location`, `audioUri`/`spectrogramUri`. The moderator's identity is never kept. "Whales" = reviewed and `found: yes` (SRKW) or a whale tag (`srkw`, `resident`, `transient`, `biggs`, `humpback`, `orca`, `whale`); the model's own label is not used.
+OrcaHello (`service/orcahello.mjs`): detections arrive off the bus on `acoustic.orcahello` (schema `acoustic.OrcaHello.v1`), published once per box by `planetar-acoustic/orcahello` (pm2 `planetar:orcahello`), which polls the public detections API (`aifororcasdetections.azurewebsites.net/api/detections`, last 24 h, every 5 min) and republishes the whole window every 30 min so a restarted service catches up; the service dedupes on id + review state. `ORCAHELLO=off` skips the subscription. Kept fields (the ingest's whitelist): `id`, `timestamp`, `confidence`, `reviewed`, `found`, `tagList`, `location`, `audioUri`/`spectrogramUri`. The moderator's identity is never kept. "Whales" = reviewed and `found: yes` (SRKW) or a whale tag (`srkw`, `resident`, `transient`, `biggs`, `humpback`, `orca`, `whale`); the model's own label is not used.
 
 ## `orca.evidence` — schema `orca.Evidence.v1`
 

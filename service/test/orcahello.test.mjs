@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { classify, createOrcaHelloPoller, toEvidence } from '../orcahello.mjs';
+import { classify, createDetectionGate, toEvidence } from '../orcahello.mjs';
 import { createInferenceService } from '../core.mjs';
 import { loadConfig, loadHarbours, loadVessels } from '../load.mjs';
 import { scenarioPositions } from '../sim.mjs';
@@ -81,51 +81,15 @@ test('a non-https audio link is dropped', () => {
   assert.equal(toEvidence(detection({ audioUri: 'javascript:alert(1)', spectrogramUri: null }), 'e').raw, null);
 });
 
-// --- poller ---------------------------------------------------------------------------------
+// --- bus dedupe ----------------------------------------------------------------------------
 
-function fakeFetch(pages) {
-  const urls = [];
-  const fn = async (url) => {
-    urls.push(url);
-    const page = Number(new URL(url).searchParams.get('Page'));
-    return { ok: true, json: async () => pages[page - 1] ?? [] };
-  };
-  return { fn, urls };
-}
-
-test('the poller reports each detection once, and again when its review changes', async () => {
-  let pages = [[detection()]];
-  const seen = [];
-  const poller = createOrcaHelloPoller({
-    fetch: async (url) => fakeFetch(pages).fn(url), onDetection: (d) => seen.push(d), recordsPerPage: 50,
-  });
-  await poller.poll();
-  await poller.poll();
-  assert.equal(seen.length, 1);
-  pages = [[detection({ reviewed: true, found: 'yes', tagList: ['srkw'] })]];
-  await poller.poll();
-  assert.equal(seen.length, 2);
-  assert.equal(seen[1].found, 'yes');
-});
-
-test('the poller pages until a short page, and asks for the last 24 h newest first', async () => {
-  const full = Array.from({ length: 2 }, (_, i) => detection({ id: `a${i}` }));
-  const f = fakeFetch([full, full.map((d) => ({ ...d, id: `b${d.id}` })), [detection({ id: 'c' })]]);
-  const seen = [];
-  await createOrcaHelloPoller({ fetch: f.fn, onDetection: (d) => seen.push(d.id), recordsPerPage: 2 }).poll();
-  assert.equal(seen.length, 5);
-  assert.equal(f.urls.length, 3);
-  const q = new URL(f.urls[0]).searchParams;
-  assert.deepEqual([q.get('Timeframe'), q.get('SortBy'), q.get('SortOrder')], ['24h', 'timestamp', 'desc']);
-});
-
-test('a failed fetch is reported, not thrown', async () => {
-  const errors = [];
-  const poller = createOrcaHelloPoller({
-    fetch: async () => ({ ok: false, status: 503 }), onDetection: () => {}, onError: (e) => errors.push(e),
-  });
-  await poller.poll();
-  assert.equal(errors.length, 1);
+test('the gate passes a detection once, and again when its review changes', () => {
+  const pass = createDetectionGate();
+  assert.equal(pass(detection()), true);
+  assert.equal(pass(detection()), false); // the ingest's periodic resync
+  assert.equal(pass(detection({ reviewed: true, found: 'yes', tagList: ['srkw'] })), true);
+  assert.equal(pass(detection({ reviewed: true, found: 'yes', tagList: ['srkw'] })), false);
+  assert.equal(pass({}), false);
 });
 
 // --- fusion with boat estimates -------------------------------------------------------------

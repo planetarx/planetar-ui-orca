@@ -27,6 +27,5 @@
   "hydrophoneRangeM": 10000,
   "hydrophoneWithinMin": 30,
   "hydrophoneHearingM": 5000,
-  "hydrophoneEstimateMin": 120,
-  "orcaHelloPollMin": 5
+  "hydrophoneEstimateMin": 120
 }
